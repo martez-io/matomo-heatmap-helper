@@ -286,14 +286,34 @@ btnDone.addEventListener('click', async () => {
       throw new Error(matomoResult?.error || 'Failed to trigger Matomo screenshot');
     }
 
+    // Step 4: Verify screenshot was captured
+    console.log('[Popup] Step 4: Verifying screenshot capture...');
+    btnDone.textContent = 'Verifying screenshot...';
+
+    const verified = await waitForScreenshotCapture(
+      parseInt(selectedHeatmap.idsite),
+      parseInt(selectedHeatmap.idsitehsr)
+    );
+
+    if (!verified) {
+      throw new Error(
+        'Screenshot capture failed. Matomo did not capture the page content.\n\n' +
+        'This could be due to:\n' +
+        '• Network issues or timeouts\n' +
+        '• Matomo server problems\n' +
+        '• Configuration issues\n\n' +
+        'Please try again.'
+      );
+    }
+
     // Success!
-    console.log('[Popup] Screenshot captured successfully');
+    console.log('[Popup] Screenshot captured and verified successfully');
     successHeatmapId.textContent = selectedHeatmap.idsitehsr;
     successHeatmapName.textContent = selectedHeatmap.name;
     showState('success');
     stopPolling();
 
-    // Step 4: Open heatmap view in new tab (via background worker)
+    // Step 5: Open heatmap view in new tab (via background worker)
     if (selectedHeatmap.heatmapViewUrl) {
       let heatmapUrl = matomoApiUrl +'/' + selectedHeatmap.heatmapViewUrl;
       // strip out token_auth from the url
@@ -321,21 +341,15 @@ btnDone.addEventListener('click', async () => {
     btnDone.disabled = false;
     btnDone.textContent = 'Done Scrolling - Take Screenshot';
 
-    if (bypassedMatomoCheck) {
-      // User already bypassed the initial check, show error in UI and stay in current state
-      // This avoids sending them back to the error state in a confusing loop
-      console.log('[Popup] User had bypassed Matomo check - showing error in UI');
+    // Show error message inline in the scrolling state
+    // (User is already in scrolling state, so showing error state would be confusing)
+    console.log('[Popup] Showing error in scrolling state UI');
 
-      // Show error message in the scrolling state
-      scrollingErrorMessage.textContent = error.message;
-      scrollingError.style.display = 'block';
+    scrollingErrorMessage.textContent = error.message;
+    scrollingError.style.display = 'block';
 
-      // Scroll error into view
-      scrollingError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    } else {
-      // First time error, show error state screen
-      showMatomoError(tab.url, error.message);
-    }
+    // Scroll error into view
+    scrollingError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 });
 
@@ -637,6 +651,63 @@ async function resumeHeatmap() {
     console.error('[Popup] Failed to resume heatmap:', error);
     throw new Error(`Failed to resume heatmap: ${error.message}`);
   }
+}
+
+// ============================================================================
+// Screenshot Verification Functions
+// ============================================================================
+
+async function verifyScreenshotCaptured(idSite, idSiteHsr) {
+  console.log('[Popup] Verifying screenshot capture...');
+
+  try {
+    const result = await callMatomoAPI(matomoApiUrl, {
+      method: 'HeatmapSessionRecording.getHeatmap',
+      idSite: idSite,
+      idSiteHsr: idSiteHsr,
+      token_auth: matomoAuthToken,
+      includePageTreeMirror: 1
+    });
+
+    console.log('[Popup] getHeatmap response:', result);
+
+    // Check if page_treemirror exists and is non-empty
+    if (result &&
+        result.page_treemirror &&
+        typeof result.page_treemirror === 'string' &&
+        result.page_treemirror.trim() !== '') {
+      console.log('[Popup] Screenshot verified - page_treemirror present and non-empty');
+      return true;
+    } else {
+      console.warn('[Popup] Screenshot not verified - page_treemirror missing or empty');
+      return false;
+    }
+  } catch (error) {
+    console.error('[Popup] Failed to verify screenshot:', error);
+    return false;
+  }
+}
+
+async function waitForScreenshotCapture(idSite, idSiteHsr) {
+  const maxAttempts = 50;
+  const delayMs = 300;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`[Popup] Verifying screenshot capture (attempt ${attempt}/${maxAttempts})...`);
+
+    // Wait before checking
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+
+    // Verify
+    const success = await verifyScreenshotCaptured(idSite, idSiteHsr);
+    if (success) {
+      console.log('[Popup] Screenshot verified successfully!');
+      return true;
+    }
+  }
+
+  console.error('[Popup] Screenshot verification timed out after 2 seconds');
+  return false;
 }
 
 // ============================================================================
