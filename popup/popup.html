@@ -11,6 +11,7 @@
     <div id="state-input" class="state active">
       <div class="header">
         <h1>=� Matomo Screenshot Helper</h1>
+        <button id="btn-settings-input" class="btn-settings" title="Settings">⚙️</button>
       </div>
 
       <div class="content">
@@ -32,6 +33,7 @@
     <div id="state-error" class="state">
       <div class="header">
         <h1>⚠️ Matomo Not Detected</h1>
+        <button id="btn-settings-error" class="btn-settings" title="Settings">⚙️</button>
       </div>
 
       <div class="content">
@@ -67,6 +69,7 @@
     <div id="state-scrolling" class="state">
       <div class="header">
         <h1>=F Please Scroll</h1>
+        <button id="btn-settings-scrolling" class="btn-settings" title="Settings">⚙️</button>
       </div>
 
       <div class="content">
@@ -107,6 +110,7 @@
     <div id="state-success" class="state">
       <div class="header">
         <h1> Screenshot Captured!</h1>
+        <button id="btn-settings-success" class="btn-settings" title="Settings">⚙️</button>
       </div>
 
       <div class="content">
@@ -131,6 +135,57 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Matomo API Settings</h2>
+        <button id="btn-close-modal" class="btn-close-modal" title="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="matomo-url">Matomo Instance URL:</label>
+          <input
+            type="text"
+            id="matomo-url"
+            placeholder="https://matomo.example.com"
+          />
+          <small class="input-hint">Your Matomo server URL (without trailing slash)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="matomo-token">Auth Token:</label>
+          <input
+            type="password"
+            id="matomo-token"
+            placeholder="Enter your auth token"
+          />
+          <small class="input-hint">Found in Matomo under Personal → Security → Auth Tokens</small>
+        </div>
+
+        <button id="btn-validate" class="btn btn-primary">
+          Validate & Load Sites
+        </button>
+
+        <div id="validation-status" class="status-message" style="display: none;"></div>
+
+        <div id="site-selection" class="form-group" style="display: none;">
+          <label for="matomo-site">Select Site:</label>
+          <select id="matomo-site"></select>
+        </div>
+
+        <button id="btn-save-settings" class="btn btn-primary" style="display: none;">
+          Save Settings
+        </button>
+
+        <button id="btn-clear-settings" class="btn btn-secondary" style="display: none;">
+          Clear Credentials
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="popup.js"></script>

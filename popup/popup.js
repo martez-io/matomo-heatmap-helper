@@ -3,6 +3,12 @@ let currentState = 'input'; // 'input', 'scrolling', 'success'
 let heatmapId = null;
 let bypassedMatomoCheck = false; // Track if user bypassed the Matomo check
 
+// Matomo API credentials
+let matomoApiUrl = null;
+let matomoAuthToken = null;
+let matomoSiteId = null;
+let matomoSiteName = null;
+
 // DOM elements
 const stateInput = document.getElementById('state-input');
 const stateError = document.getElementById('state-error');
@@ -24,17 +30,49 @@ const errorUrl = document.getElementById('error-url');
 const scrollingError = document.getElementById('scrolling-error');
 const scrollingErrorMessage = document.getElementById('scrolling-error-message');
 
+// Settings modal elements
+const settingsModal = document.getElementById('settings-modal');
+const btnSettingsInput = document.getElementById('btn-settings-input');
+const btnSettingsError = document.getElementById('btn-settings-error');
+const btnSettingsScrolling = document.getElementById('btn-settings-scrolling');
+const btnSettingsSuccess = document.getElementById('btn-settings-success');
+const btnCloseModal = document.getElementById('btn-close-modal');
+const inputMatomoUrl = document.getElementById('matomo-url');
+const inputMatomoToken = document.getElementById('matomo-token');
+const btnValidate = document.getElementById('btn-validate');
+const validationStatus = document.getElementById('validation-status');
+const siteSelection = document.getElementById('site-selection');
+const selectMatomoSite = document.getElementById('matomo-site');
+const btnSaveSettings = document.getElementById('btn-save-settings');
+const btnClearSettings = document.getElementById('btn-clear-settings');
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  // Load saved heatmap ID if exists
-  chrome.storage.local.get(['lastHeatmapId'], (result) => {
+  // Load saved heatmap ID and Matomo credentials if they exist
+  chrome.storage.local.get(['lastHeatmapId', 'matomoApiUrl', 'matomoAuthToken', 'matomoSiteId', 'matomoSiteName'], (result) => {
     if (result.lastHeatmapId) {
       inputHeatmapId.value = result.lastHeatmapId;
     }
+
+    // Load Matomo credentials
+    if (result.matomoApiUrl) matomoApiUrl = result.matomoApiUrl;
+    if (result.matomoAuthToken) matomoAuthToken = result.matomoAuthToken;
+    if (result.matomoSiteId) matomoSiteId = result.matomoSiteId;
+    if (result.matomoSiteName) matomoSiteName = result.matomoSiteName;
+
+    console.log('[Popup] Loaded credentials:', {
+      hasUrl: !!matomoApiUrl,
+      hasToken: !!matomoAuthToken,
+      siteId: matomoSiteId,
+      siteName: matomoSiteName
+    });
   });
 
   // Check if Matomo exists on the current page
   checkMatomo();
+
+  // Initialize settings modal event listeners
+  initializeSettingsModal();
 });
 
 // State management
@@ -371,3 +409,274 @@ function updateScrollStatus(status) {
 window.addEventListener('unload', () => {
   stopPolling();
 });
+
+// ============================================================================
+// Settings Modal Functions
+// ============================================================================
+
+function initializeSettingsModal() {
+  console.log('[Popup] Initializing settings modal');
+
+  // Settings button click handlers (all states)
+  btnSettingsInput.addEventListener('click', openSettingsModal);
+  btnSettingsError.addEventListener('click', openSettingsModal);
+  btnSettingsScrolling.addEventListener('click', openSettingsModal);
+  btnSettingsSuccess.addEventListener('click', openSettingsModal);
+
+  // Modal close handlers
+  btnCloseModal.addEventListener('click', closeSettingsModal);
+  settingsModal.addEventListener('click', (e) => {
+    // Close if clicking the backdrop
+    if (e.target === settingsModal) {
+      closeSettingsModal();
+    }
+  });
+
+  // Validate button
+  btnValidate.addEventListener('click', validateAndLoadSites);
+
+  // Save button
+  btnSaveSettings.addEventListener('click', saveSettings);
+
+  // Clear button
+  btnClearSettings.addEventListener('click', clearSettings);
+}
+
+function openSettingsModal() {
+  console.log('[Popup] Opening settings modal');
+
+  // Populate form with current values if they exist
+  if (matomoApiUrl) inputMatomoUrl.value = matomoApiUrl;
+  if (matomoAuthToken) inputMatomoToken.value = matomoAuthToken;
+
+  // Show/hide clear button based on whether credentials exist
+  if (matomoApiUrl && matomoAuthToken && matomoSiteId) {
+    btnClearSettings.style.display = 'block';
+  } else {
+    btnClearSettings.style.display = 'none';
+  }
+
+  // Reset validation UI
+  validationStatus.style.display = 'none';
+  validationStatus.className = 'status-message';
+  siteSelection.style.display = 'none';
+  btnSaveSettings.style.display = 'none';
+
+  // Show modal
+  settingsModal.classList.add('active');
+
+  // Auto-load sites if credentials exist
+  if (matomoApiUrl && matomoAuthToken) {
+    console.log('[Popup] Auto-loading sites with saved credentials');
+    validateAndLoadSites();
+  }
+}
+
+function closeSettingsModal() {
+  console.log('[Popup] Closing settings modal');
+  settingsModal.classList.remove('active');
+}
+
+async function validateAndLoadSites() {
+  console.log('[Popup] Validating token and loading sites');
+
+  const url = inputMatomoUrl.value.trim();
+  const token = inputMatomoToken.value.trim();
+
+  // Validate inputs
+  if (!url || !token) {
+    showValidationStatus('error', 'Please enter both Matomo URL and Auth Token');
+    return;
+  }
+
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch (e) {
+    showValidationStatus('error', 'Invalid URL format. Please enter a valid URL (e.g., https://matomo.example.com)');
+    return;
+  }
+
+  // Show loading state
+  btnValidate.disabled = true;
+  btnValidate.textContent = 'Validating...';
+  showValidationStatus('loading', 'Connecting to Matomo and fetching sites with write access...');
+
+  try {
+    // Call Matomo API to get sites with write access
+    const sites = await callMatomoAPI(url, {
+      method: 'SitesManager.getSitesWithMinimumAccess',
+      permission: 'write',
+      token_auth: token
+    });
+
+    console.log('[Popup] Received sites:', sites);
+
+    // Check if we got a valid response
+    if (!Array.isArray(sites) || sites.length === 0) {
+      throw new Error('No sites with write access found for this token');
+    }
+
+    // Success! Populate site dropdown
+    selectMatomoSite.innerHTML = '';
+    sites.forEach(site => {
+      const option = document.createElement('option');
+      option.value = JSON.stringify({ idsite: site.idsite, name: site.name });
+      option.textContent = `${site.name} (ID: ${site.idsite})`;
+
+      // Pre-select current site if it matches
+      if (matomoSiteId && site.idsite == matomoSiteId) {
+        option.selected = true;
+      }
+
+      selectMatomoSite.appendChild(option);
+    });
+
+    // Show success message and site selection
+    showValidationStatus('success', `✓ Found ${sites.length} site(s) with write access`);
+    siteSelection.style.display = 'block';
+    btnSaveSettings.style.display = 'block';
+
+    // Reset validate button
+    btnValidate.disabled = false;
+    btnValidate.textContent = 'Validate & Load Sites';
+
+  } catch (error) {
+    console.error('[Popup] Validation error:', error);
+    showValidationStatus('error', `Validation failed: ${error.message}`);
+
+    // Reset validate button
+    btnValidate.disabled = false;
+    btnValidate.textContent = 'Validate & Load Sites';
+
+    // Hide site selection
+    siteSelection.style.display = 'none';
+    btnSaveSettings.style.display = 'none';
+  }
+}
+
+function showValidationStatus(type, message) {
+  validationStatus.style.display = 'block';
+  validationStatus.className = `status-message ${type}`;
+  validationStatus.textContent = message;
+}
+
+async function saveSettings() {
+  console.log('[Popup] Saving settings');
+
+  const url = inputMatomoUrl.value.trim();
+  const token = inputMatomoToken.value.trim();
+  const selectedSite = JSON.parse(selectMatomoSite.value);
+
+  // Update in-memory variables
+  matomoApiUrl = url;
+  matomoAuthToken = token;
+  matomoSiteId = selectedSite.idsite;
+  matomoSiteName = selectedSite.name;
+
+  // Save to storage
+  chrome.storage.local.set({
+    matomoApiUrl: url,
+    matomoAuthToken: token,
+    matomoSiteId: selectedSite.idsite,
+    matomoSiteName: selectedSite.name
+  }, () => {
+    console.log('[Popup] Settings saved successfully');
+    showValidationStatus('success', `✓ Settings saved! Using site: ${selectedSite.name}`);
+
+    // Close modal after a short delay
+    setTimeout(() => {
+      closeSettingsModal();
+    }, 1500);
+  });
+}
+
+async function clearSettings() {
+  console.log('[Popup] Clearing settings');
+
+  if (!confirm('Are you sure you want to clear all Matomo API credentials?')) {
+    return;
+  }
+
+  // Clear in-memory variables
+  matomoApiUrl = null;
+  matomoAuthToken = null;
+  matomoSiteId = null;
+  matomoSiteName = null;
+
+  // Clear from storage
+  chrome.storage.local.remove(['matomoApiUrl', 'matomoAuthToken', 'matomoSiteId', 'matomoSiteName'], () => {
+    console.log('[Popup] Settings cleared');
+
+    // Clear form
+    inputMatomoUrl.value = '';
+    inputMatomoToken.value = '';
+    selectMatomoSite.innerHTML = '';
+
+    // Reset UI
+    validationStatus.style.display = 'none';
+    siteSelection.style.display = 'none';
+    btnSaveSettings.style.display = 'none';
+    btnClearSettings.style.display = 'none';
+
+    showValidationStatus('success', 'Credentials cleared successfully');
+
+    setTimeout(() => {
+      closeSettingsModal();
+    }, 1500);
+  });
+}
+
+async function callMatomoAPI(baseUrl, params) {
+  // Build URL
+  const url = `${baseUrl}/index.php`;
+
+  // Build form data
+  const formData = new URLSearchParams();
+  formData.append('module', 'API');
+  formData.append('format', 'json');
+
+  // Add all params
+  for (const [key, value] of Object.entries(params)) {
+    formData.append(key, value);
+  }
+
+  console.log('[Popup] Calling Matomo API (POST):', url);
+  console.log('[Popup] Form data:', formData.toString());
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      body: formData.toString()
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    // Check for Matomo API error response
+    if (data.result === 'error') {
+      throw new Error(data.message || 'Matomo API returned an error');
+    }
+
+    return data;
+
+  } catch (error) {
+    console.error('[Popup] API call failed:', error);
+
+    // Provide user-friendly error messages
+    if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+      throw new Error('Cannot connect to Matomo. Check the URL and your internet connection.');
+    } else if (error.message.includes('CORS')) {
+      throw new Error('CORS error. The Matomo server may need to allow requests from this extension.');
+    } else {
+      throw error;
+    }
+  }
+}
