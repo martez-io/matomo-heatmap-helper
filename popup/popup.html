@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- State 1: Heatmap ID Input -->
+    <div id="state-input" class="state active">
+      <div class="header">
+        <h1>=� Matomo Screenshot Helper</h1>
+      </div>
+
+      <div class="content">
+        <label for="heatmap-id">Heatmap ID:</label>
+        <input
+          type="text"
+          id="heatmap-id"
+          placeholder="Enter heatmap ID (e.g., 123)"
+          autofocus
+        />
+
+        <button id="btn-start" class="btn btn-primary">
+          Start Tracking
+        </button>
+      </div>
+    </div>
+
+    <!-- State: Error (Matomo Not Found) -->
+    <div id="state-error" class="state">
+      <div class="header">
+        <h1>⚠️ Matomo Not Detected</h1>
+      </div>
+
+      <div class="content">
+        <div class="error-message">
+          <p><strong>This page doesn't appear to have Matomo installed.</strong></p>
+        </div>
+
+        <div class="error-details">
+          <p>Common reasons:</p>
+          <ul>
+            <li>Page doesn't use Matomo tracking</li>
+            <li>Matomo is still loading (try "Retry Check")</li>
+            <li>Testing on restricted page (chrome://, file://, etc.)</li>
+            <li>Ad blocker is blocking Matomo scripts</li>
+          </ul>
+        </div>
+
+        <div class="error-url">
+          <p><small>Current page: <span id="error-url"></span></small></p>
+        </div>
+
+        <button id="btn-retry" class="btn btn-primary">
+          Retry Check
+        </button>
+
+        <button id="btn-continue-anyway" class="btn btn-secondary">
+          Continue Anyway
+        </button>
+      </div>
+    </div>
+
+    <!-- State 2: Scroll Instruction -->
+    <div id="state-scrolling" class="state">
+      <div class="header">
+        <h1>=F Please Scroll</h1>
+      </div>
+
+      <div class="content">
+        <div class="instructions">
+          <p><strong>Scroll through all areas:</strong></p>
+          <ul>
+            <li>Main page content (to the bottom)</li>
+            <li>Any sidebars or panels</li>
+            <li>Any nested scrollable areas</li>
+            <li>Any popups or modals</li>
+          </ul>
+        </div>
+
+        <div class="status">
+          <div class="status-item">
+            <span class="label">Detected scroll areas:</span>
+            <span id="detected-count" class="value">0</span>
+          </div>
+        </div>
+
+        <div class="detected-list" id="detected-list">
+          <!-- Dynamically populated with detected scrollables -->
+        </div>
+
+        <!-- Error message box (hidden by default) -->
+        <div id="scrolling-error" class="error-box" style="display: none;">
+          <div class="error-box-title">❌ Screenshot Failed</div>
+          <div id="scrolling-error-message" class="error-box-message"></div>
+        </div>
+
+        <button id="btn-done" class="btn btn-primary">
+          Done Scrolling - Take Screenshot
+        </button>
+      </div>
+    </div>
+
+    <!-- State 3: Processing/Success -->
+    <div id="state-success" class="state">
+      <div class="header">
+        <h1> Screenshot Captured!</h1>
+      </div>
+
+      <div class="content">
+        <div class="success-message">
+          <p> Elements expanded</p>
+          <p> Matomo screenshot triggered</p>
+          <p> Heatmap ID: <span id="success-heatmap-id"></span></p>
+        </div>
+
+        <div class="info">
+          <p>Matomo will now capture the full page screenshot.</p>
+          <p>You can close this popup and wait for Matomo to process the heatmap data.</p>
+        </div>
+
+        <button id="btn-restore" class="btn btn-secondary">
+          Restore Original Layout
+        </button>
+
+        <button id="btn-reset" class="btn btn-primary">
+          Start Over
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
