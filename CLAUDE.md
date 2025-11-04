@@ -4,368 +4,269 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Chrome extension (Manifest V3) that helps prepare pages with custom scroll containers for Matomo heatmap screenshots. The extension tracks scrollable elements as users interact with them, then expands these elements and triggers Matomo's screenshot capture API.
+A Chrome extension (Manifest V3) built with WXT, React, TypeScript, and Tailwind CSS that helps prepare pages with custom scroll containers for Matomo heatmap screenshots. The extension tracks scrollable elements as users interact with them, then expands these elements and triggers Matomo's screenshot capture API.
 
-## Architecture
+## Development Commands
+
+```bash
+# Development mode with hot reload
+npm run dev
+
+# Production build for Chrome
+npm run build
+
+# Build for Firefox
+npm run build:firefox
+
+# Create distributable ZIP
+npm run zip
+```
+
+After building, load the extension from `.output/chrome-mv3` (or `firefox-mv3`) in your browser's developer mode.
+
+## Architecture Overview
+
+### WXT Framework
+
+This project uses [WXT](https://wxt.dev/) - a modern framework for building browser extensions with:
+- TypeScript support out of the box
+- React integration via `@wxt-dev/module-react`
+- Hot Module Replacement (HMR) for rapid development
+- Auto-generated manifest from `wxt.config.ts`
+- Built-in storage utilities via `@wxt-dev/storage`
+
+### Tech Stack
+
+- **Framework**: WXT 0.20.x
+- **UI Library**: React 19 with React DOM
+- **Styling**: Tailwind CSS 4.x with PostCSS
+- **State Management**: TanStack Query (React Query) for async state
+- **Forms**: React Hook Form with Zod validation
+- **Icons**: Lucide React
+- **Type Safety**: TypeScript with strict mode
 
 ### Extension Components
 
-The extension uses a standard popup-based Chrome extension architecture:
+**Popup** (`entrypoints/popup/`): Main UI for heatmap selection and screenshot capture. Uses React with TanStack Query for data fetching. State flow: `loading` → `onboarding` (if no credentials) → `no-matomo` (if Matomo not detected) → `selection` → `tracking` → `processing` → `complete`.
 
-1. **Popup UI (`popup/`)**: User interface for managing Matomo API credentials, selecting heatmaps from a dropdown, viewing detected scrollable elements, and triggering screenshot capture. Manages state transitions through 4 states: `input`, `error`, `scrolling`, and `success`. Includes a settings modal for configuring Matomo API access and loading available heatmaps.
+**Options Page** (`entrypoints/options/`): Separate page for managing Matomo API credentials. Validates credentials by fetching sites with write access, allows site selection, and persists settings to chrome.storage.
 
-2. **Content Script (`content/content.js`)**: Runs on all pages (`<all_urls>`). Handles:
-   - Scroll event tracking using user-driven detection (attaches listeners to all DOM elements)
-   - Scrollable element registry with metadata (scroll height, constraining parents, etc.)
-   - DOM manipulation to expand elements
-   - Layout restoration
-   - Visual feedback animations (scanner overlay and border glow)
+**Content Script** (`entrypoints/content.ts`): Runs on all pages at `document_idle`. Handles scroll event tracking, element registry, DOM manipulation for expansion/restoration, and visual feedback animations (scanner overlay and border glow).
 
-3. **Background Service Worker (`background/background.js`)**: Handles post-screenshot actions independently of popup lifecycle. Receives messages from popup, triggers border glow animation on the scanned page, waits for animation to complete, then creates new tabs, ensuring proper focus management and allowing users to see completion feedback.
+**Background Worker** (`entrypoints/background.ts`): Service worker that handles post-screenshot actions independently of popup lifecycle. Triggers border glow animation, waits for completion, then creates new tab with heatmap view.
 
-### Message Passing Architecture
+### Key Architectural Patterns
 
-**Popup → Content Script** via `chrome.tabs.sendMessage()`:
+**Dual Execution Context**: The extension uses both `ISOLATED` (content script default) and `MAIN` (page context) worlds. Matomo API calls must execute in `MAIN` world via `chrome.scripting.executeScript({ world: 'MAIN' })` to access page's `window._paq` object. See `lib/messaging.ts:executeInPageContext()`.
 
-- `startTracking`: Initializes scroll tracking with heatmap ID
-- `getStatus`: Polls for current count of detected scrollables (500ms intervals)
-- `expandElements`: Triggers DOM expansion (returns promise for async completion)
-- `restore`: Restores original element states
-- `showScanner`: Injects scanner overlay animation on webpage
-- `showBorderGlow`: Removes scanner and shows border glow animation
+**Type-Safe Messaging**: All Chrome extension message passing uses strongly typed interfaces defined in `types/messages.ts`. Helper functions in `lib/messaging.ts` provide type safety: `sendToContentScript()`, `sendToBackground()`, `executeInPageContext()`.
 
-**Popup → Background Worker** via `chrome.runtime.sendMessage()`:
+**Storage Abstraction**: Uses WXT's storage utilities wrapped in type-safe helpers (`lib/storage.ts`) with a centralized schema (`types/storage.ts`). Storage keys are namespaced (e.g., `matomo:apiUrl`, `ui:selectedHeatmapId`, `cache:heatmaps`).
 
-- `onSuccessfulScreenshot`: Sent after successful screenshot capture with heatmap URL and tabId. Background worker triggers border glow animation, waits 1.5s, then creates new tab.
+**Component Architecture**: React components are organized by domain:
+- `components/popup/`: Popup-specific components (HeatmapSelector, ScrollTracker, StatusFeedback)
+- `components/options/`: Options page components (CredentialsForm, SiteSelector, ValidationStatus)
+- `components/shared/`: Reusable components (Button, ErrorMessage, LoadingSpinner)
 
-**Background Worker → Content Script** via `chrome.tabs.sendMessage()`:
+### Message Flow
 
-- `showBorderGlow`: Triggers border glow animation on the scanned page before redirecting to heatmap view
+**Popup → Content Script** (via `chrome.tabs.sendMessage()`):
+- `startTracking`: Initialize scroll tracking with heatmap ID
+- `stopTracking`: Stop tracking and clear state
+- `getStatus`: Get current scroll tracking status (polled every 500ms)
+- `expandElements`: Trigger DOM expansion (async)
+- `restore`: Restore original element states
+- `showScanner`: Inject scanner overlay animation
+- `showBorderGlow`: Show border glow animation
 
-### Execution Contexts
+**Popup → Background Worker** (via `chrome.runtime.sendMessage()`):
+- `onSuccessfulScreenshot`: Sent after successful screenshot with heatmap URL and tabId
 
-**CRITICAL**: The extension uses both `ISOLATED` and `MAIN` execution contexts:
+**Background → Content Script** (via `chrome.tabs.sendMessage()`):
+- `showBorderGlow`: Trigger border glow animation before tab redirect
 
-- **Content script** runs in `ISOLATED` world (default for content scripts) - cannot access page's `window._paq`
-- **Matomo API calls** must run in `MAIN` world via `chrome.scripting.executeScript({ world: 'MAIN' })` to access page context and `window._paq`
-
-This dual-context architecture is essential for security while maintaining Matomo API access.
+**Popup → Page Context** (via `chrome.scripting.executeScript({ world: 'MAIN' })`):
+- `triggerMatomoScreenshot()`: Executes `window._paq.push(['HeatmapSessionRecording::captureInitialDom'])` and `window._paq.push(['HeatmapSessionRecording::enable'])`
+- `checkMatomoExists()`: Checks if `window._paq` exists on page
 
 ### State Management
 
-**Content Script State** (`content/content.js:2-8`):
-- `ScrollTracker` object maintains global state:
-  - `scrolledElements`: Map of detected scrollable elements with metadata
-  - `originalStates`: Map of original CSS styles for restoration
-  - `isTracking`: Boolean tracking mode
-  - `heatmapId`: Current heatmap ID
-  - `startTime`: Tracking start timestamp
+**Content Script State** (`entrypoints/content.ts:4-10`):
+```typescript
+const ScrollTracker = {
+  scrolledElements: Map<HTMLElement, ElementMetadata>,
+  originalStates: Map<HTMLElement, ElementStyles>,
+  isTracking: boolean,
+  heatmapId: number | null,
+  startTime: number | null,
+}
+```
 
-**Popup State** (`popup/popup.js:2-11`):
-- `currentState`: One of `'input'`, `'error'`, `'scrolling'`, `'success'`
-- `selectedHeatmap`: Full heatmap object from API (contains idsitehsr, name, status, capture_manually, match_page_rules, etc.)
-- `availableHeatmaps`: Array of heatmaps loaded from Matomo API for current site
-- `bypassedMatomoCheck`: Tracks if user bypassed Matomo detection
-- `matomoApiUrl`: Stored Matomo instance URL for API calls
-- `matomoAuthToken`: Stored authentication token for Matomo API
-- `matomoSiteId`: Selected site ID with write access
-- `matomoSiteName`: Selected site name for display
+**Popup State** (`entrypoints/popup/App.tsx:20-33`):
+- `state`: AppState enum ('loading' | 'onboarding' | 'no-matomo' | 'selection' | 'tracking' | 'processing' | 'complete')
+- `selectedHeatmap`: Full MatomoHeatmap object
+- `processingStep`: ProcessingStep enum ('validating' | 'expanding' | 'capturing' | 'verifying' | 'complete')
+- TanStack Query manages heatmap fetching with caching
 
-### Scrollable Detection Algorithm
+**Storage Persisted State**:
+- `matomo:apiUrl`, `matomo:authToken`, `matomo:siteId`, `matomo:siteName`: Credentials
+- `ui:selectedHeatmapId`: Last selected heatmap ID
+- `cache:heatmaps`: Cached heatmap list with timestamp (5 min TTL)
 
-The extension uses **user-driven detection** rather than heuristics (`content/content.js:68-104`):
+## Core Workflows
 
+### Scroll Detection Algorithm
+
+User-driven detection (not heuristic-based):
 1. Attach `scroll` event listeners to all DOM elements on tracking start
-2. When a scroll event fires:
-   - Check if element has scrollable content (`scrollHeight > clientHeight`)
-   - Skip if already registered
-   - Find constraining parents that limit expansion
-   - Store metadata in `ScrollTracker.scrolledElements` Map
-   - Apply visual feedback (green outline)
+2. When scroll fires, check if `element.scrollHeight > element.clientHeight`
+3. Skip if already registered
+4. Store original CSS state before any modification
+5. Find and store constraining parents that limit expansion
+6. Add element to registry with metadata
+7. Apply visual feedback (green outline removed during expansion)
 
-### Parent Constraint Detection
+### Element Expansion Strategy
 
-Function `findConstrainingParents()` (`content/content.js:240-266`) walks up the DOM tree to find parents that constrain child expansion:
-
-- Fixed heights: `100vh`, `100%`, or pixel values
-- Max-height constraints
-- Overflow hidden: `overflow: hidden` or `overflow-y: hidden`
-- Heights smaller than child's scrollHeight
-
-These parents must also be expanded during screenshot capture.
-
-### Expansion Strategy
-
-Function `handleExpandElements()` (`content/content.js:127-176`):
-
+Function `handleExpandElements()` in `entrypoints/content.ts:184-223`:
 1. Stop tracking (`isTracking = false`)
-2. Store original CSS states for all modified elements
+2. Store original states for `<html>` and `<body>`
 3. Expand `<html>` and `<body>` to remove viewport constraints
 4. For each detected scrollable:
    - Remove visual outline
    - Set `minHeight` to full `scrollHeight`
    - Set `overflow: visible`
    - Expand all constraining parents
-5. Force reflow and wait 500ms for rendering
+5. Force reflow with `document.body.offsetHeight`
+6. Wait 500ms for rendering to complete
+
+### Parent Constraint Detection
+
+Function `findConstrainingParents()` in `entrypoints/content.ts:287-313` walks up DOM tree to find parents that constrain child expansion:
+- Fixed heights: `100vh`, `100%`, or pixel values
+- `max-height` constraints
+- `overflow: hidden` or `overflow-y: hidden`
+- Heights smaller than child's scrollHeight
+
+These parents must also be expanded during screenshot capture.
 
 ### Matomo Integration
 
-The extension triggers two Matomo API calls in sequence and verifies the screenshot was captured:
+**Screenshot Trigger Sequence** (`entrypoints/popup/App.tsx:192-271`):
+1. Show scanner animation on page
+2. **Validate heatmap** (`processingStep: 'validating'`):
+   - If `capture_manually === 0`: Call `updateHeatmap()` to enable manual capture
+   - If `status === 'ended'`: Call `resumeHeatmap()` to reactivate
+3. **Expand elements** (`processingStep: 'expanding'`): Send `expandElements` message
+4. **Capture** (`processingStep: 'capturing'`): Execute in MAIN world to call `window._paq.push()`
+5. **Verify** (`processingStep: 'verifying'`): Poll Matomo API for `page_treemirror` field
+6. **Restore**: Send `restore` message to revert DOM changes
+7. **Complete**: Send to background worker, close popup
+8. **Background handles**: Border glow animation (1.5s) → Create new tab
 
-**Screenshot Trigger** (`popup/popup.js:260-279`):
-```javascript
-window._paq.push(['HeatmapSessionRecording::captureInitialDom', heatmapId]);
-window._paq.push(['HeatmapSessionRecording::enable']);
-```
-
-These **must** execute in `MAIN` world to access the page's `window._paq` object.
-
-**Screenshot Verification** (`popup/popup.js:646-716`):
-After triggering the screenshot, the extension verifies it was captured by polling the Matomo API:
-
-- Function `verifyScreenshotCaptured()`: Calls `HeatmapSessionRecording.getHeatmap` with `includePageTreeMirror=1`
-- Checks if `page_treemirror` field exists and is non-empty
-- Function `waitForScreenshotCapture()`: Polls every 300ms for up to 50 attempts (15 seconds)
-- If verification succeeds: Proceeds to show border glow and redirect
-- If verification fails: Shows inline error message with retry option
-
-This ensures the popup only closes and redirects after Matomo has successfully captured the page content.
+**Screenshot Verification** (`lib/matomo-api.ts:189-211`):
+- Calls `HeatmapSessionRecording.getHeatmap` with `includePageTreeMirror=1`
+- Polls every 300ms for up to 50 attempts (15 seconds total)
+- Checks if `page_treemirror` exists and is non-empty string
+- Returns true if verified, false if timeout
 
 ### Visual Feedback Animations
 
-The extension provides visual feedback during the screenshot process using two animations injected into the webpage:
+**Scanner Overlay** (`entrypoints/content.ts:321-388`):
+- Dark overlay (rgba(0,0,0,0.8)) with animated orange scan line
+- Gradient: rgba(254,154,0,0.3) to rgba(254,154,0,0.8) with glow
+- Animates from top to bottom over 3 seconds (infinite loop)
+- Shows during validation, expansion, capture, and verification
+- Hidden from Matomo screenshots via CSS selectors `html.matomoHsr`, `html.piwikHsr`
 
-**Scanner Overlay** (`content/content.js:289-358`):
-- Shows when user clicks "Done Scrolling - Take Screenshot"
-- Dark overlay (rgba(0,0,0,0.7)) covering the entire viewport
-- Animated green scanning line moving from top to bottom (3s loop)
-- Gradient: `rgba(46,204,113,0.3)` to `rgba(46,204,113,0.8)` with glow effect
-- Visible during validation, expansion, screenshot trigger, and verification
-- Hidden from Matomo screenshots using `html.matomoHsr` and `html.piwikHsr` CSS selectors
-
-**Border Glow Animation** (`content/content.js:360-402`):
-- Shows after screenshot verification succeeds and popup closes
+**Border Glow** (`entrypoints/content.ts:391-435`):
 - Green inset box-shadow on viewport edges
-- Fade in: 0.5s ease-in-out
-- Hold at full opacity: 1 second
-- Fade out: 0.5s ease-in-out (starts at 1000ms mark)
-- Total duration: 1.5 seconds
-- After animation completes, background worker creates new tab with heatmap URL
+- Animation: fade in 0.5s → hold 1s → fade out 0.5s (total 1.5s)
+- Shows after screenshot verification and popup close
+- Background worker creates new tab after animation completes
 - Also hidden from Matomo screenshots
 
-Both animations use high z-index (999999) and pointer-events: none to avoid interfering with page interaction.
+Both animations use `z-index: 999999` and `pointer-events: none`.
 
-### Heatmap Validation & Configuration
+## Data Types
 
-Before triggering the screenshot, the extension validates and configures the selected heatmap via Matomo API calls:
+Key type definitions in `types/`:
 
-**1. Load Available Heatmaps** (`popup/popup.js:430-512`):
-- API: `HeatmapSessionRecording.getHeatmaps`
-- Called on popup load if credentials exist
-- Populates dropdown with format: `"Name (ID: 123) - Active/Ended"`
+**`matomo.ts`**: MatomoSite, MatomoHeatmap, MatomoApiResponse, HeatmapVerificationResponse
 
-**2. Pre-Screenshot Validation** (`popup/popup.js:537-564`):
-- Checks `capture_manually` setting:
-  - If `=== 0`: Calls `updateHeatmap()` with `captureDomManually=true`
-- Checks heatmap status:
-  - If `=== "ended"`: Calls `resumeHeatmap()` and increments `sample_limit` by 1
+**`messages.ts`**: ContentScriptMessage, BackgroundMessage, with discriminated unions for different action types
 
-**3. Update Heatmap API** (`popup/popup.js:566-608`):
-- API: `HeatmapSessionRecording.updateHeatmap`
-- Preserves all existing settings
-- Encodes `match_page_rules` array with proper URL encoding
+**`storage.ts`**: StorageSchema defining all storage keys and their types (e.g., `'matomo:apiUrl': string`, `'cache:heatmaps': { heatmaps: MatomoHeatmap[], siteId: number, timestamp: number }`)
 
-**4. Resume Heatmap API** (`popup/popup.js:610-628`):
-- API: `HeatmapSessionRecording.resumeHeatmap`
-- Re-activates ended heatmaps for new screenshot capture
+## Library Functions
 
-## Development Workflow
+**`lib/matomo-api.ts`**: MatomoApiClient class with methods:
+- `getSitesWithWriteAccess()`: Fetch sites user can modify
+- `getHeatmaps(siteId)`: Fetch heatmaps for a site
+- `getHeatmap(siteId, heatmapId, includePageTreeMirror)`: Fetch single heatmap with optional page tree
+- `updateHeatmap(heatmap)`: Update heatmap config (enables manual capture)
+- `resumeHeatmap(siteId, heatmapId)`: Reactivate ended heatmap
+- `verifyScreenshotCaptured(siteId, heatmapId)`: Check if screenshot exists
+- `waitForScreenshotCapture(siteId, heatmapId, maxAttempts, delayMs)`: Poll for verification
 
-### Loading the Extension
+**`lib/messaging.ts`**: Type-safe Chrome extension messaging helpers
 
-1. Navigate to `chrome://extensions/`
-2. Enable "Developer mode"
-3. Click "Load unpacked"
-4. Select this directory
-5. After code changes: click the reload icon on the extension card
+**`lib/storage.ts`**: Type-safe storage wrappers using WXT storage utilities
 
-### Testing
+## React Hooks
 
-Manual testing workflow:
+**`hooks/useHeatmaps.ts`**: TanStack Query hook for fetching heatmaps with automatic caching and refetching. Caches results to storage with 5-minute TTL.
 
-**Initial Setup:**
-1. Open extension popup
-2. Click settings gear icon (⚙️)
-3. Enter Matomo instance URL (e.g., https://matomo.example.com)
-4. Enter auth token
-5. Click "Validate & Load Sites"
-6. Verify sites load and dropdown populates
-7. Select site and click "Save Settings"
+**`hooks/useScrollTracking.ts`**: Hook that polls content script status every 500ms when tracking is active. Returns `{ scrolledCount, scrollables }`.
 
-**Heatmap Selection & Screenshot Workflow:**
-1. Navigate to a page with custom scroll containers (e.g., Angular Material, Vuetify)
-2. Open extension popup
-3. Verify heatmaps loaded in dropdown (or configure credentials if first time)
-4. Select desired heatmap from dropdown
-5. Click "Start Tracking"
-6. Scroll through all scrollable areas
-7. Verify counter updates and elements get green outlines
-8. Click "Done Scrolling - Take Screenshot"
-9. Extension will:
-   - Show scanner overlay with animated green line on the webpage
-   - Validate heatmap settings (enable manual capture if needed, resume if ended)
-   - Expand all detected scrollable elements
-   - Trigger Matomo screenshot capture
-   - Verify screenshot was captured (polls Matomo API for up to 15 seconds)
-   - Close popup
-   - Show border glow animation on the webpage (green edges fading in/out)
-   - Open new tab with heatmap view after animation completes
-10. Verify scanner appears during processing
-11. Verify border glow shows after popup closes
-12. Verify new tab opens and stays focused on heatmap view
+## Important Implementation Details
 
-**Site Switching:**
-1. Open settings modal again
-2. Verify current site is pre-selected
-3. Change site selection
-4. Click "Save Settings"
-5. Verify new site is saved and heatmaps reload for new site
-6. Verify previously selected heatmap is cleared (since it belongs to old site)
+**Matomo Detection**: On popup load, executes in MAIN world to check for `window._paq`. Shows error state if not found, with "Continue Anyway" bypass option for testing.
 
-### Debugging
+**Heatmap Caching**: Heatmaps are cached to storage with timestamp. Popup shows cached data immediately on mount while fetching fresh data in background. Cache TTL is 5 minutes.
 
-- **Popup console**: Right-click extension icon → Inspect popup
-- **Content script console**: Open page DevTools (F12) → Console tab
-- **Background worker console**: Navigate to `chrome://extensions/` → Click "service worker" link under extension
-- **Page context execution**: Check for `[Page Context]` logs in page console
-- **API calls**: Check Network tab in popup console for Matomo API requests
+**Polling**: When in tracking state, popup polls content script every 500ms via `getStatus` message. Polling stops on error, success, or when user clicks Restore/Reset.
 
-All components log extensively with prefixes like `[Popup]`, `[Content]`, `[Background]`, `[Page Context]`.
+**Error Handling**: Errors during screenshot process show inline in current state to avoid confusing state transitions. Users can retry by clicking "Take Screenshot" again.
 
-**Common Issues:**
-- **CORS errors**: Matomo server may need to allow requests from the extension
-- **Authentication failures**: Check token validity and permissions
-- **No sites returned**: User may not have write access to any sites
-- **No heatmaps found**: Site may not have any heatmaps configured in Matomo
-- **Focus jumping back**: Ensure background worker is registered correctly in manifest.json
-- **Tab not opening**: Check background worker console for errors in `onSuccessfulScreenshot` handler
-- **Screenshot verification timeout**: Matomo may be slow to process screenshot - check Matomo server logs, or network latency
-- **Animations not appearing**: Check content script console for injection errors
-- **Animations visible in screenshot**: Verify `html.matomoHsr` CSS rules are present in injected styles
+**Focus Management**: Background worker handles post-screenshot actions to prevent focus jumping back to scanned page. Popup closes immediately after sending message to background, which then handles animations and tab creation with `active: true`.
 
-## Key Implementation Details
+## File Organization
 
-### Storage
+```
+entrypoints/          # WXT entrypoints (popup, options, content, background)
+  popup/             # Popup UI with App.tsx
+  options/           # Options page with App.tsx
+  content.ts         # Content script
+  background.ts      # Background service worker
+  style.css          # Global Tailwind styles
+components/          # React components organized by domain
+  popup/             # Popup-specific components
+  options/           # Options page components
+  shared/            # Reusable components
+hooks/               # Custom React hooks
+lib/                 # Core library functions (API, messaging, storage)
+types/               # TypeScript type definitions
+public/icons/        # Extension icons (16, 48, 128)
+wxt.config.ts        # WXT configuration
+tailwind.config.js   # Tailwind CSS configuration
+tsconfig.json        # TypeScript configuration
+```
 
-Uses `chrome.storage.local` to persist:
-- `selectedHeatmap`: Full heatmap object for convenience (contains idsitehsr, name, status, etc.)
-- `matomoApiUrl`: Matomo instance URL (e.g., https://matomo.example.com)
-- `matomoAuthToken`: User's Matomo authentication token (stored securely by Chrome)
-- `matomoSiteId`: Selected site ID with write access
-- `matomoSiteName`: Selected site name for display
+## WXT-Specific Patterns
 
-Credentials and selected heatmap are loaded on popup initialization (`popup/popup.js:52-77`).
+**Entrypoint Definition**: Use `defineContentScript()`, `defineBackground()` exported as default. WXT auto-generates manifest entries.
 
-### Settings Modal & Matomo API Integration
+**Storage**: Use `storage` from `wxt/utils/storage` with namespaced keys (e.g., `local:matomo:apiUrl`). The storage API is reactive and works across all extension contexts.
 
-The extension includes a settings modal (gear icon ⚙️ in all state headers) for managing Matomo API credentials and loading heatmaps:
+**Auto-imports**: WXT auto-imports browser APIs. Use `chrome.*` directly without imports.
 
-**Authentication Flow:**
-1. User enters Matomo instance URL and auth token
-2. Clicks "Validate & Load Sites"
-3. Extension calls Matomo API: `POST {url}/index.php` with:
-   - `method=SitesManager.getSitesWithMinimumAccess`
-   - `permission=write`
-   - `token_auth={token}`
-4. On success, populates site dropdown with sites user has write access to
-5. User selects site and saves credentials to `chrome.storage.local`
-
-**Auto-load Behavior:**
-- When opening settings modal with saved credentials, the extension automatically loads available sites and pre-selects the current site
-- When popup opens with saved credentials, the extension automatically loads available heatmaps for the current site
-- Site switching triggers automatic heatmap reload and clears previously selected heatmap
-
-**API Helper Function:**
-`callMatomoAPI(baseUrl, params)` is a reusable function for making authenticated Matomo API calls using POST requests with form-encoded data. Used for:
-- Loading sites with write access
-- Loading available heatmaps
-- Updating heatmap configuration
-- Resuming ended heatmaps
-
-**UI Features:**
-- Settings gear icon (⚙️) visible in all state headers for easy access
-- Modal overlay with slide-in animation
-- Password-type input for secure token entry
-- Real-time validation feedback (loading, success, error states)
-- Site switching without re-authentication
-- Credential clearing with confirmation
-
-### Matomo Detection
-
-On popup load, checks for `window._paq` in `MAIN` world (`popup/popup.js:67-107`). Shows error state if not found, with option to "Continue Anyway" for testing.
-
-### Error Handling
-
-All errors during the screenshot process show inline in the scrolling state to avoid confusing state transitions.
-
-**Error Scenarios:**
-- **No credentials**: Shows helpful message: "Please configure Matomo credentials in settings first"
-- **No heatmaps found**: Displays error with suggestion to create heatmaps in Matomo
-- **API validation fails**: Aborts screenshot process and shows detailed error message inline
-- **Screenshot capture fails**: Shows error inline with retry option
-- **Screenshot verification fails**: Shows inline error after 15 second timeout with message about network/server issues
-
-Users can retry by clicking the "Done Scrolling" button again without needing to restart tracking.
-
-### Polling Updates
-
-When in scrolling state, popup polls content script every 500ms for status updates to update the detected count and list in real-time. Polling is stopped when:
-- Screenshot capture succeeds
-- Error occurs during capture
-- User clicks "Restore" or "Reset"
-
-### Background Worker & Post-Screenshot Flow
-
-After successful screenshot capture and verification, the popup sends a message to the background service worker to handle animations and tab creation. This architecture solves the focus-jumping issue:
-
-**Problem:** When popup closes, Chrome restores focus to the tab that opened it (the scanned page)
-
-**Solution:** Background worker handles post-popup-close actions independently
-
-**Flow:**
-1. Screenshot captured and verified
-2. Popup sends `onSuccessfulScreenshot` message to background worker with heatmap URL and tabId
-3. Popup closes immediately (`window.close()`)
-4. Background worker sends `showBorderGlow` message to content script on the scanned page
-5. Border glow animation plays on scanned page (1.5 seconds total)
-6. After 1.5s delay, background worker creates new tab with `active: true`
-7. Focus switches to new heatmap tab and stays there
-
-This ensures the user sees the complete border glow animation on the scanned page before being redirected.
-
-**Security:** The heatmap URL has `token_auth` parameter stripped before being sent to background worker to prevent exposing sensitive tokens in URLs.
-
-### Element Selectors
-
-Function `getElementSelector()` (`content/content.js:230-237`) generates CSS selectors for UI display:
-- Prefers `#id` if available
-- Falls back to first 2 class names (`.class1.class2`)
-- Falls back to tag name
+**Build Output**: Dev builds to `.output/chrome-mv3-dev`, production to `.output/chrome-mv3`. Each browser target has separate output directory.
 
 ## Permissions
 
-- `activeTab`: Access current tab only (minimal permission)
+Defined in `wxt.config.ts:5-10`:
+- `activeTab`: Access current tab only
 - `scripting`: Required for `chrome.scripting.executeScript()` in MAIN world
-- `storage`: Persist selected heatmap and Matomo API credentials
-- `host_permissions: ["<all_urls>"]`: Required for making API calls to user-provided Matomo instances
-
-## File Structure
-
-- `manifest.json`: Extension manifest (Manifest V3) with permissions, host_permissions, and background service worker
-- `background/background.js`: Background service worker for post-screenshot actions (border glow animation trigger, tab creation)
-- `popup/popup.html`: Popup UI with 4 state sections, heatmap dropdown, and settings modal overlay
-- `popup/popup.css`: Popup styling including dropdown, loading indicators, modal, and form styles
-- `popup/popup.js`: Popup state management, heatmap selection/validation, screenshot verification, message passing, and Matomo API integration
-- `content/content.js`: Core scroll tracking, expansion logic, and visual feedback animations (scanner and border glow)
-- `icons/`: Extension icons (16x16, 48x48, 128x128)
-- `CLAUDE.md`: This file - architecture and implementation documentation
+- `storage`: Persist credentials and state
+- `host_permissions: ['<all_urls>']`: Required for Matomo API calls to user-provided instances
