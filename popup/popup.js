@@ -1,6 +1,7 @@
 // State management
 let currentState = 'input'; // 'input', 'scrolling', 'success'
-let heatmapId = null;
+let selectedHeatmap = null; // Full heatmap object from API
+let availableHeatmaps = []; // Cache of loaded heatmaps
 let bypassedMatomoCheck = false; // Track if user bypassed the Matomo check
 
 // Matomo API credentials
@@ -15,7 +16,11 @@ const stateError = document.getElementById('state-error');
 const stateScrolling = document.getElementById('state-scrolling');
 const stateSuccess = document.getElementById('state-success');
 
-const inputHeatmapId = document.getElementById('heatmap-id');
+const heatmapSelector = document.getElementById('heatmap-selector');
+const heatmapLoading = document.getElementById('heatmap-loading');
+const heatmapError = document.getElementById('heatmap-error');
+const heatmapErrorMessage = document.getElementById('heatmap-error-message');
+const noCredentialsMessage = document.getElementById('no-credentials-message');
 const btnStart = document.getElementById('btn-start');
 const btnDone = document.getElementById('btn-done');
 const btnRestore = document.getElementById('btn-restore');
@@ -26,6 +31,7 @@ const btnContinueAnyway = document.getElementById('btn-continue-anyway');
 const detectedCount = document.getElementById('detected-count');
 const detectedList = document.getElementById('detected-list');
 const successHeatmapId = document.getElementById('success-heatmap-id');
+const successHeatmapName = document.getElementById('success-heatmap-name');
 const errorUrl = document.getElementById('error-url');
 const scrollingError = document.getElementById('scrolling-error');
 const scrollingErrorMessage = document.getElementById('scrolling-error-message');
@@ -48,10 +54,11 @@ const btnClearSettings = document.getElementById('btn-clear-settings');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  // Load saved heatmap ID and Matomo credentials if they exist
-  chrome.storage.local.get(['lastHeatmapId', 'matomoApiUrl', 'matomoAuthToken', 'matomoSiteId', 'matomoSiteName'], (result) => {
-    if (result.lastHeatmapId) {
-      inputHeatmapId.value = result.lastHeatmapId;
+  // Load saved heatmap and Matomo credentials if they exist
+  chrome.storage.local.get(['selectedHeatmap', 'matomoApiUrl', 'matomoAuthToken', 'matomoSiteId', 'matomoSiteName'], (result) => {
+    // Load selected heatmap
+    if (result.selectedHeatmap) {
+      selectedHeatmap = result.selectedHeatmap;
     }
 
     // Load Matomo credentials
@@ -64,8 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
       hasUrl: !!matomoApiUrl,
       hasToken: !!matomoAuthToken,
       siteId: matomoSiteId,
-      siteName: matomoSiteName
+      siteName: matomoSiteName,
+      hasSelectedHeatmap: !!selectedHeatmap
     });
+
+    // Load heatmaps if credentials exist
+    if (matomoApiUrl && matomoAuthToken && matomoSiteId) {
+      loadHeatmaps();
+    }
   });
 
   // Check if Matomo exists on the current page
@@ -87,7 +100,6 @@ function showState(state) {
   switch(state) {
     case 'input':
       stateInput.classList.add('active');
-      inputHeatmapId.focus();
       break;
     case 'error':
       stateError.classList.add('active');
@@ -145,7 +157,7 @@ async function checkMatomo() {
 }
 
 // Show Matomo error state
-function showMatomoError(url, details) {
+function showMatomoError(url, _details) {
   errorUrl.textContent = url;
   showState('error');
 }
@@ -166,24 +178,13 @@ btnContinueAnyway.addEventListener('click', () => {
 // Button: Start Tracking
 btnStart.addEventListener('click', async () => {
   console.log('[Popup] Start button clicked');
-  const id = inputHeatmapId.value.trim();
 
-  if (!id) {
-    alert('Please enter a heatmap ID');
+  if (!selectedHeatmap) {
+    alert('Please select a heatmap');
     return;
   }
 
-  // Validate it's a number
-  if (!/^\d+$/.test(id)) {
-    alert('Heatmap ID must be a number');
-    return;
-  }
-
-  heatmapId = id;
-  console.log('[Popup] Heatmap ID validated:', heatmapId);
-
-  // Save for next time
-  chrome.storage.local.set({ lastHeatmapId: id });
+  console.log('[Popup] Starting tracking with heatmap:', selectedHeatmap.name, selectedHeatmap.idsitehsr);
 
   // Send message to content script to start tracking
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -191,7 +192,7 @@ btnStart.addEventListener('click', async () => {
 
   chrome.tabs.sendMessage(tab.id, {
     action: 'startTracking',
-    heatmapId: heatmapId
+    heatmapId: selectedHeatmap.idsitehsr
   }, (response) => {
     console.log('[Popup] Response received:', response);
     console.log('[Popup] Last error:', chrome.runtime.lastError);
@@ -221,11 +222,17 @@ btnDone.addEventListener('click', async () => {
 
   // Disable button to prevent double-click
   btnDone.disabled = true;
-  btnDone.textContent = 'Expanding elements...';
+  btnDone.textContent = 'Validating heatmap...';
 
   try {
-    // Step 1: Expand elements via content script (DOM manipulation)
-    console.log('[Popup] Step 1: Expanding elements...');
+    // Step 1: Validate and configure heatmap
+    console.log('[Popup] Step 1: Validating and configuring heatmap...');
+    await validateAndConfigureHeatmap();
+
+    // Step 2: Expand elements via content script (DOM manipulation)
+    console.log('[Popup] Step 2: Expanding elements...');
+    btnDone.textContent = 'Expanding elements...';
+
     const expandResponse = await new Promise((resolve, reject) => {
       chrome.tabs.sendMessage(tab.id, {
         action: 'expandElements'
@@ -245,8 +252,8 @@ btnDone.addEventListener('click', async () => {
     console.log('[Popup] Elements expanded successfully');
     btnDone.textContent = 'Triggering Matomo...';
 
-    // Step 2: Trigger Matomo in MAIN world (page context)
-    console.log('[Popup] Step 2: Triggering Matomo screenshot...');
+    // Step 3: Trigger Matomo in MAIN world (page context)
+    console.log('[Popup] Step 3: Triggering Matomo screenshot...');
     const matomoResults = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       world: 'MAIN',  // Run in page context to access window._paq
@@ -268,7 +275,7 @@ btnDone.addEventListener('click', async () => {
         console.log('[Page Context] Matomo screenshot triggered successfully');
         return { success: true };
       },
-      args: [heatmapId]
+      args: [selectedHeatmap.idsitehsr]
     });
 
     const matomoResult = matomoResults[0].result;
@@ -281,9 +288,28 @@ btnDone.addEventListener('click', async () => {
 
     // Success!
     console.log('[Popup] Screenshot captured successfully');
-    successHeatmapId.textContent = heatmapId;
+    successHeatmapId.textContent = selectedHeatmap.idsitehsr;
+    successHeatmapName.textContent = selectedHeatmap.name;
     showState('success');
     stopPolling();
+
+    // Step 4: Open heatmap view in new tab (via background worker)
+    if (selectedHeatmap.heatmapViewUrl) {
+      let heatmapUrl = matomoApiUrl +'/' + selectedHeatmap.heatmapViewUrl;
+      // strip out token_auth from the url
+      heatmapUrl = heatmapUrl.replace('&token_auth=' + matomoAuthToken, '');
+      console.log('[Popup] Sending message to background worker to open:', heatmapUrl);
+
+      // Send message to background worker to handle post-screenshot actions
+      // This ensures tab is created AFTER popup closes, preventing focus issues
+      chrome.runtime.sendMessage({
+        action: 'onSuccessfulScreenshot',
+        url: heatmapUrl
+      });
+
+      // Close popup immediately - background worker will create tab independently
+      window.close();
+    }
 
   } catch (error) {
     console.error('[Popup] Error during expand and capture:', error);
@@ -308,7 +334,6 @@ btnDone.addEventListener('click', async () => {
       scrollingError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else {
       // First time error, show error state screen
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       showMatomoError(tab.url, error.message);
     }
   }
@@ -334,7 +359,7 @@ btnRestore.addEventListener('click', async () => {
 
 // Button: Reset
 btnReset.addEventListener('click', () => {
-  heatmapId = null;
+  // Don't clear selectedHeatmap - keep it selected for convenience
   bypassedMatomoCheck = false; // Reset bypass flag
   detectedCount.textContent = '0';
   detectedList.innerHTML = '';
@@ -409,6 +434,210 @@ function updateScrollStatus(status) {
 window.addEventListener('unload', () => {
   stopPolling();
 });
+
+// ============================================================================
+// Heatmap Loading Functions
+// ============================================================================
+
+async function loadHeatmaps() {
+  console.log('[Popup] Loading heatmaps for site:', matomoSiteId);
+
+  // Validate we have credentials
+  if (!matomoApiUrl || !matomoAuthToken || !matomoSiteId) {
+    console.log('[Popup] Missing credentials, showing message');
+    noCredentialsMessage.style.display = 'block';
+    heatmapLoading.style.display = 'none';
+    heatmapSelector.style.display = 'none';
+    heatmapError.style.display = 'none';
+    btnStart.disabled = true;
+    return;
+  }
+
+  // Show loading indicator
+  heatmapLoading.style.display = 'flex';
+  heatmapSelector.style.display = 'none';
+  heatmapError.style.display = 'none';
+  noCredentialsMessage.style.display = 'none';
+  btnStart.disabled = true;
+
+  try {
+    // Call Matomo API to get heatmaps
+    const heatmaps = await callMatomoAPI(matomoApiUrl, {
+      method: 'HeatmapSessionRecording.getHeatmaps',
+      idSite: matomoSiteId,
+      token_auth: matomoAuthToken
+    });
+
+    console.log('[Popup] Received heatmaps:', heatmaps);
+
+    // Check if we got valid response
+    if (!Array.isArray(heatmaps)) {
+      throw new Error('Invalid response from Matomo API');
+    }
+
+    if (heatmaps.length === 0) {
+      throw new Error('No heatmaps found for this site. Please create a heatmap in Matomo first.');
+    }
+
+    // Store heatmaps
+    availableHeatmaps = heatmaps;
+
+    // Populate dropdown
+    heatmapSelector.innerHTML = '<option value="">Select a heatmap...</option>';
+    heatmaps.forEach(heatmap => {
+      const option = document.createElement('option');
+      option.value = JSON.stringify(heatmap);
+
+      // Format: "Name (ID: 123) - Active"
+      const status = heatmap.status === 'ended' ? 'Ended' : 'Active';
+      option.textContent = `${heatmap.name} (ID: ${heatmap.idsitehsr}) - ${status}`;
+
+      // Pre-select if this was the previously selected heatmap
+      if (selectedHeatmap && heatmap.idsitehsr == selectedHeatmap.idsitehsr) {
+        option.selected = true;
+      }
+
+      heatmapSelector.appendChild(option);
+    });
+
+    // Add change event listener
+    heatmapSelector.addEventListener('change', handleHeatmapSelection);
+
+    // Show dropdown
+    heatmapLoading.style.display = 'none';
+    heatmapSelector.style.display = 'block';
+
+    // Enable start button if a heatmap is selected
+    if (heatmapSelector.value) {
+      btnStart.disabled = false;
+    }
+
+  } catch (error) {
+    console.error('[Popup] Failed to load heatmaps:', error);
+
+    // Show error message
+    heatmapLoading.style.display = 'none';
+    heatmapError.style.display = 'block';
+    heatmapErrorMessage.textContent = error.message;
+    btnStart.disabled = true;
+  }
+}
+
+function handleHeatmapSelection(event) {
+  const value = event.target.value;
+
+  if (value) {
+    // Parse and store the selected heatmap
+    selectedHeatmap = JSON.parse(value);
+    console.log('[Popup] Heatmap selected:', selectedHeatmap);
+
+    // Save to storage
+    chrome.storage.local.set({ selectedHeatmap: selectedHeatmap });
+
+    // Enable start button
+    btnStart.disabled = false;
+  } else {
+    selectedHeatmap = null;
+    btnStart.disabled = true;
+  }
+}
+
+// ============================================================================
+// Heatmap Validation and Configuration Functions
+// ============================================================================
+
+async function validateAndConfigureHeatmap() {
+  console.log('[Popup] Validating and configuring heatmap:', selectedHeatmap);
+
+  if (!selectedHeatmap) {
+    throw new Error('No heatmap selected');
+  }
+
+  try {
+    // Check if we need to update heatmap settings
+    if (selectedHeatmap.capture_manually == 0) {
+      console.log('[Popup] Heatmap requires manual capture to be enabled');
+      await updateHeatmap();
+    }
+
+    // Check if heatmap has ended and needs to be resumed
+    if (selectedHeatmap.status === 'ended') {
+      console.log('[Popup] Heatmap has ended, resuming it');
+      await resumeHeatmap();
+    }
+
+    console.log('[Popup] Heatmap validation and configuration complete');
+    return { success: true };
+
+  } catch (error) {
+    console.error('[Popup] Validation/configuration failed:', error);
+    throw error;
+  }
+}
+
+async function updateHeatmap() {
+  console.log('[Popup] Updating heatmap configuration');
+
+  const params = {
+    method: 'HeatmapSessionRecording.updateHeatmap',
+    idSite: selectedHeatmap.idsite,
+    idSiteHsr: selectedHeatmap.idsitehsr,
+    name: selectedHeatmap.name,
+    sampleRate: selectedHeatmap.sample_rate,
+    breakpointMobile: selectedHeatmap.breakpoint_mobile,
+    breakpointTablet: selectedHeatmap.breakpoint_tablet,
+    screenshotUrl: selectedHeatmap.screenshot_url || '',
+    excludedElements: selectedHeatmap.excluded_elements || '',
+    captureDomManually: true,
+    token_auth: matomoAuthToken
+  };
+
+  // Handle sample_limit: increment by 1 if heatmap has ended
+  if (selectedHeatmap.status === 'ended') {
+    params.sampleLimit = parseInt(selectedHeatmap.sample_limit) + 1;
+  } else {
+    params.sampleLimit = selectedHeatmap.sample_limit;
+  }
+
+  // Encode match_page_rules array
+  if (selectedHeatmap.match_page_rules && Array.isArray(selectedHeatmap.match_page_rules)) {
+    selectedHeatmap.match_page_rules.forEach((rule, index) => {
+      params[`matchPageRules[${index}][attribute]`] = rule.attribute;
+      params[`matchPageRules[${index}][type]`] = rule.type;
+      params[`matchPageRules[${index}][value]`] = rule.value;
+      params[`matchPageRules[${index}][inverted]`] = rule.inverted || '0';
+    });
+  }
+
+  try {
+    const result = await callMatomoAPI(matomoApiUrl, params);
+    console.log('[Popup] Heatmap updated successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('[Popup] Failed to update heatmap:', error);
+    throw new Error(`Failed to update heatmap configuration: ${error.message}`);
+  }
+}
+
+async function resumeHeatmap() {
+  console.log('[Popup] Resuming heatmap');
+
+  const params = {
+    method: 'HeatmapSessionRecording.resumeHeatmap',
+    idSite: selectedHeatmap.idsite,
+    idSiteHsr: selectedHeatmap.idsitehsr,
+    token_auth: matomoAuthToken
+  };
+
+  try {
+    const result = await callMatomoAPI(matomoApiUrl, params);
+    console.log('[Popup] Heatmap resumed successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('[Popup] Failed to resume heatmap:', error);
+    throw new Error(`Failed to resume heatmap: ${error.message}`);
+  }
+}
 
 // ============================================================================
 // Settings Modal Functions
@@ -568,6 +797,14 @@ async function saveSettings() {
   const token = inputMatomoToken.value.trim();
   const selectedSite = JSON.parse(selectMatomoSite.value);
 
+  // Check if site changed - if so, clear selected heatmap
+  const siteChanged = matomoSiteId !== selectedSite.idsite;
+  if (siteChanged) {
+    console.log('[Popup] Site changed, clearing selected heatmap');
+    selectedHeatmap = null;
+    chrome.storage.local.remove('selectedHeatmap');
+  }
+
   // Update in-memory variables
   matomoApiUrl = url;
   matomoAuthToken = token;
@@ -583,6 +820,9 @@ async function saveSettings() {
   }, () => {
     console.log('[Popup] Settings saved successfully');
     showValidationStatus('success', `✓ Settings saved! Using site: ${selectedSite.name}`);
+
+    // Reload heatmaps for the new/updated site
+    loadHeatmaps();
 
     // Close modal after a short delay
     setTimeout(() => {

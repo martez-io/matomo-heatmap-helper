@@ -489,3 +489,80 @@ input[type="text"]:focus {
 .modal-body .btn {
   margin-top: 10px;
 }
+
+/* Select dropdown */
+select {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  background-color: white;
+  cursor: pointer;
+}
+
+select:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f5f5f5;
+}
+
+/* Loading indicator */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  color: #0c5460;
+  font-size: 13px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #bee5eb;
+  border-top-color: #0c5460;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Info message */
+.info-message {
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.info-message p {
+  margin: 8px 0;
+  color: #0c5460;
+  font-size: 13px;
+}
+
+.info-message p:first-child {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.info-message small {
+  font-size: 12px;
+  color: #31708f;
+}

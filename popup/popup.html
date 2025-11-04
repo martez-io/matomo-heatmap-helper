@@ -15,15 +15,33 @@
       </div>
 
       <div class="content">
-        <label for="heatmap-id">Heatmap ID:</label>
-        <input
-          type="text"
-          id="heatmap-id"
-          placeholder="Enter heatmap ID (e.g., 123)"
-          autofocus
-        />
+        <!-- Heatmap selection -->
+        <div id="heatmap-selection-container">
+          <label for="heatmap-selector">Select Heatmap:</label>
 
-        <button id="btn-start" class="btn btn-primary">
+          <!-- Loading indicator -->
+          <div id="heatmap-loading" class="loading-indicator" style="display: none;">
+            <span class="spinner"></span> Loading heatmaps...
+          </div>
+
+          <!-- Dropdown -->
+          <select id="heatmap-selector" style="display: none;">
+            <option value="">Select a heatmap...</option>
+          </select>
+
+          <!-- Error messages -->
+          <div id="heatmap-error" class="error-message" style="display: none;">
+            <span id="heatmap-error-message"></span>
+          </div>
+
+          <!-- No credentials message -->
+          <div id="no-credentials-message" class="info-message" style="display: none;">
+            <p>⚙️ Please configure Matomo credentials in settings first</p>
+            <p><small>Click the gear icon above to get started</small></p>
+          </div>
+        </div>
+
+        <button id="btn-start" class="btn btn-primary" disabled>
           Start Tracking
         </button>
       </div>
@@ -117,11 +135,11 @@
         <div class="success-message">
           <p> Elements expanded</p>
           <p> Matomo screenshot triggered</p>
-          <p> Heatmap ID: <span id="success-heatmap-id"></span></p>
+          <p>&nbsp; <strong><span id="success-heatmap-name"></span></strong></p>
+          <p><small>ID: <span id="success-heatmap-id"></span></small></p>
         </div>
 
-        <div class="info">
-          <p>Matomo will now capture the full page screenshot.</p>
+          <p>A new tab has been opened with your heatmap.</p>
           <p>You can close this popup and wait for Matomo to process the heatmap data.</p>
         </div>
 
