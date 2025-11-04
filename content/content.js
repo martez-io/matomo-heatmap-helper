@@ -38,6 +38,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: true });
         return true;
 
+      case 'showScanner':
+        console.log('[Content] Showing scanner animation');
+        showScanner();
+        sendResponse({ success: true });
+        return true;
+
+      case 'showBorderGlow':
+        console.log('[Content] Showing border glow animation');
+        showBorderGlow();
+        sendResponse({ success: true });
+        return true;
+
       default:
         console.log('[Content] Unknown action:', request.action);
         sendResponse({ success: false, error: 'Unknown action' });
@@ -268,6 +280,125 @@ function findConstrainingParents(element) {
 // Helper: Sleep
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ============================================================================
+// Scanner and Border Glow Animations
+// ============================================================================
+
+function showScanner() {
+  // Remove any existing scanner
+  const existing = document.getElementById('matomo-scanner-overlay');
+  if (existing) {
+    existing.remove();
+  }
+
+  // Create overlay container
+  const overlay = document.createElement('div');
+  overlay.id = 'matomo-scanner-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.7);
+  `;
+
+  // Create scanning line
+  const scanLine = document.createElement('div');
+  scanLine.id = 'matomo-scan-line';
+  scanLine.style.cssText = `
+    position: fixed;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(46, 204, 113, 0.3) 20%,
+      rgba(46, 204, 113, 0.8) 50%,
+      rgba(46, 204, 113, 0.3) 80%,
+      transparent 100%);
+    box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
+    animation: matomo-scan 3s ease-in-out infinite;
+    z-index: 1000000;
+  `;
+
+  // Add CSS animation if not already present
+  if (!document.getElementById('matomo-scanner-styles')) {
+    const style = document.createElement('style');
+    style.id = 'matomo-scanner-styles';
+    style.textContent = `
+      @keyframes matomo-scan {
+        0%, 100% {
+          top: 0;
+        }
+        50% {
+          top: 100%;
+        }
+      }
+
+      /* Hide animation overlays during Matomo screenshot capture */
+      html.matomoHsr #matomo-scanner-overlay,
+      html.matomoHsr #matomo-scan-line,
+      html.matomoHsr #matomo-border-glow,
+      html.piwikHsr #matomo-scanner-overlay,
+      html.piwikHsr #matomo-scan-line,
+      html.piwikHsr #matomo-border-glow {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Append to body
+  overlay.appendChild(scanLine);
+  document.body.appendChild(overlay);
+
+  console.log('[Content] Scanner overlay injected');
+}
+
+function showBorderGlow() {
+  // Remove scanner if present
+  const scanner = document.getElementById('matomo-scanner-overlay');
+  if (scanner) {
+    scanner.remove();
+  }
+
+  // Create border glow overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'matomo-border-glow';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999999;
+    opacity: 0;
+    transition: all 0.5s ease-in-out;
+    box-shadow:
+      inset 0 0 80px 20px rgba(46, 204, 113, 0.3),
+      inset 0 0 40px 10px rgba(46, 204, 113, 0.5);
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Trigger animation by setting opacity
+  requestAnimationFrame(() => {
+    overlay.style.opacity = '1';
+  });
+
+  console.log('[Content] Border glow overlay injected');
+
+  // Start fade-out after 1 second (leaves 0.5s for smooth fade-out animation)
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+    console.log('[Content] Border glow fading out');
+  }, 1000);
+
+  // Remove element after 1.5 seconds
+  setTimeout(() => {
+    overlay.remove();
+    console.log('[Content] Border glow overlay removed');
+  }, 1500);
 }
 
 console.log('[Matomo Screenshot Helper] Content script loaded');

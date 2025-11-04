@@ -220,6 +220,9 @@ btnDone.addEventListener('click', async () => {
   // Hide any previous error message
   scrollingError.style.display = 'none';
 
+  // Show scanner animation on the webpage
+  chrome.tabs.sendMessage(tab.id, { action: 'showScanner' });
+
   // Disable button to prevent double-click
   btnDone.disabled = true;
   btnDone.textContent = 'Validating heatmap...';
@@ -324,7 +327,8 @@ btnDone.addEventListener('click', async () => {
       // This ensures tab is created AFTER popup closes, preventing focus issues
       chrome.runtime.sendMessage({
         action: 'onSuccessfulScreenshot',
-        url: heatmapUrl
+        url: heatmapUrl,
+        tabId: tab.id
       });
 
       // Close popup immediately - background worker will create tab independently
