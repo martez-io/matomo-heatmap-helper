@@ -19,8 +19,9 @@ The extension uses a standard popup-based Chrome extension architecture:
    - Scrollable element registry with metadata (scroll height, constraining parents, etc.)
    - DOM manipulation to expand elements
    - Layout restoration
+   - Visual feedback animations (scanner overlay and border glow)
 
-3. **Background Service Worker (`background/background.js`)**: Handles post-screenshot actions independently of popup lifecycle. Receives messages from popup and creates new tabs after popup closes, ensuring proper focus management.
+3. **Background Service Worker (`background/background.js`)**: Handles post-screenshot actions independently of popup lifecycle. Receives messages from popup, triggers border glow animation on the scanned page, waits for animation to complete, then creates new tabs, ensuring proper focus management and allowing users to see completion feedback.
 
 ### Message Passing Architecture
 
@@ -30,10 +31,16 @@ The extension uses a standard popup-based Chrome extension architecture:
 - `getStatus`: Polls for current count of detected scrollables (500ms intervals)
 - `expandElements`: Triggers DOM expansion (returns promise for async completion)
 - `restore`: Restores original element states
+- `showScanner`: Injects scanner overlay animation on webpage
+- `showBorderGlow`: Removes scanner and shows border glow animation
 
 **Popup → Background Worker** via `chrome.runtime.sendMessage()`:
 
-- `onSuccessfulScreenshot`: Sent after successful screenshot capture with heatmap URL. Background worker creates new tab after popup closes to ensure proper focus management.
+- `onSuccessfulScreenshot`: Sent after successful screenshot capture with heatmap URL and tabId. Background worker triggers border glow animation, waits 1.5s, then creates new tab.
+
+**Background Worker → Content Script** via `chrome.tabs.sendMessage()`:
+
+- `showBorderGlow`: Triggers border glow animation on the scanned page before redirecting to heatmap view
 
 ### Execution Contexts
 
@@ -103,14 +110,50 @@ Function `handleExpandElements()` (`content/content.js:127-176`):
 
 ### Matomo Integration
 
-The extension triggers two Matomo API calls in sequence (`popup/popup.js:227-228`):
+The extension triggers two Matomo API calls in sequence and verifies the screenshot was captured:
 
+**Screenshot Trigger** (`popup/popup.js:260-279`):
 ```javascript
 window._paq.push(['HeatmapSessionRecording::captureInitialDom', heatmapId]);
 window._paq.push(['HeatmapSessionRecording::enable']);
 ```
 
 These **must** execute in `MAIN` world to access the page's `window._paq` object.
+
+**Screenshot Verification** (`popup/popup.js:646-716`):
+After triggering the screenshot, the extension verifies it was captured by polling the Matomo API:
+
+- Function `verifyScreenshotCaptured()`: Calls `HeatmapSessionRecording.getHeatmap` with `includePageTreeMirror=1`
+- Checks if `page_treemirror` field exists and is non-empty
+- Function `waitForScreenshotCapture()`: Polls every 300ms for up to 50 attempts (15 seconds)
+- If verification succeeds: Proceeds to show border glow and redirect
+- If verification fails: Shows inline error message with retry option
+
+This ensures the popup only closes and redirects after Matomo has successfully captured the page content.
+
+### Visual Feedback Animations
+
+The extension provides visual feedback during the screenshot process using two animations injected into the webpage:
+
+**Scanner Overlay** (`content/content.js:289-358`):
+- Shows when user clicks "Done Scrolling - Take Screenshot"
+- Dark overlay (rgba(0,0,0,0.7)) covering the entire viewport
+- Animated green scanning line moving from top to bottom (3s loop)
+- Gradient: `rgba(46,204,113,0.3)` to `rgba(46,204,113,0.8)` with glow effect
+- Visible during validation, expansion, screenshot trigger, and verification
+- Hidden from Matomo screenshots using `html.matomoHsr` and `html.piwikHsr` CSS selectors
+
+**Border Glow Animation** (`content/content.js:360-402`):
+- Shows after screenshot verification succeeds and popup closes
+- Green inset box-shadow on viewport edges
+- Fade in: 0.5s ease-in-out
+- Hold at full opacity: 1 second
+- Fade out: 0.5s ease-in-out (starts at 1000ms mark)
+- Total duration: 1.5 seconds
+- After animation completes, background worker creates new tab with heatmap URL
+- Also hidden from Matomo screenshots
+
+Both animations use high z-index (999999) and pointer-events: none to avoid interfering with page interaction.
 
 ### Heatmap Validation & Configuration
 
@@ -169,11 +212,17 @@ Manual testing workflow:
 7. Verify counter updates and elements get green outlines
 8. Click "Done Scrolling - Take Screenshot"
 9. Extension will:
+   - Show scanner overlay with animated green line on the webpage
    - Validate heatmap settings (enable manual capture if needed, resume if ended)
    - Expand all detected scrollable elements
    - Trigger Matomo screenshot capture
-   - Close popup and open new tab with heatmap view
-10. Verify new tab opens and stays focused on heatmap view
+   - Verify screenshot was captured (polls Matomo API for up to 15 seconds)
+   - Close popup
+   - Show border glow animation on the webpage (green edges fading in/out)
+   - Open new tab with heatmap view after animation completes
+10. Verify scanner appears during processing
+11. Verify border glow shows after popup closes
+12. Verify new tab opens and stays focused on heatmap view
 
 **Site Switching:**
 1. Open settings modal again
@@ -200,6 +249,9 @@ All components log extensively with prefixes like `[Popup]`, `[Content]`, `[Back
 - **No heatmaps found**: Site may not have any heatmaps configured in Matomo
 - **Focus jumping back**: Ensure background worker is registered correctly in manifest.json
 - **Tab not opening**: Check background worker console for errors in `onSuccessfulScreenshot` handler
+- **Screenshot verification timeout**: Matomo may be slow to process screenshot - check Matomo server logs, or network latency
+- **Animations not appearing**: Check content script console for injection errors
+- **Animations visible in screenshot**: Verify `html.matomoHsr` CSS rules are present in injected styles
 
 ## Key Implementation Details
 
@@ -254,13 +306,16 @@ On popup load, checks for `window._paq` in `MAIN` world (`popup/popup.js:67-107`
 
 ### Error Handling
 
-The popup tracks whether user bypassed Matomo check. If they did and capture fails, errors show inline in the scrolling state rather than sending them back to the error state. This prevents confusing state transitions.
+All errors during the screenshot process show inline in the scrolling state to avoid confusing state transitions.
 
 **Error Scenarios:**
 - **No credentials**: Shows helpful message: "Please configure Matomo credentials in settings first"
 - **No heatmaps found**: Displays error with suggestion to create heatmaps in Matomo
-- **API validation fails**: Aborts screenshot process and shows detailed error message
-- **Screenshot capture fails**: Shows error inline if user bypassed Matomo check, otherwise shows error state
+- **API validation fails**: Aborts screenshot process and shows detailed error message inline
+- **Screenshot capture fails**: Shows error inline with retry option
+- **Screenshot verification fails**: Shows inline error after 15 second timeout with message about network/server issues
+
+Users can retry by clicking the "Done Scrolling" button again without needing to restart tracking.
 
 ### Polling Updates
 
@@ -271,18 +326,22 @@ When in scrolling state, popup polls content script every 500ms for status updat
 
 ### Background Worker & Post-Screenshot Flow
 
-After successful screenshot capture, the popup sends a message to the background service worker to handle tab creation. This architecture solves the focus-jumping issue:
+After successful screenshot capture and verification, the popup sends a message to the background service worker to handle animations and tab creation. This architecture solves the focus-jumping issue:
 
 **Problem:** When popup closes, Chrome restores focus to the tab that opened it (the scanned page)
 
-**Solution:** Background worker creates tab AFTER popup closes
+**Solution:** Background worker handles post-popup-close actions independently
 
 **Flow:**
-1. Screenshot succeeds
-2. Popup sends `onSuccessfulScreenshot` message to background worker with heatmap URL
+1. Screenshot captured and verified
+2. Popup sends `onSuccessfulScreenshot` message to background worker with heatmap URL and tabId
 3. Popup closes immediately (`window.close()`)
-4. Background worker (still running) creates new tab with `active: true`
-5. Focus switches to new heatmap tab and stays there
+4. Background worker sends `showBorderGlow` message to content script on the scanned page
+5. Border glow animation plays on scanned page (1.5 seconds total)
+6. After 1.5s delay, background worker creates new tab with `active: true`
+7. Focus switches to new heatmap tab and stays there
+
+This ensures the user sees the complete border glow animation on the scanned page before being redirected.
 
 **Security:** The heatmap URL has `token_auth` parameter stripped before being sent to background worker to prevent exposing sensitive tokens in URLs.
 
@@ -303,10 +362,10 @@ Function `getElementSelector()` (`content/content.js:230-237`) generates CSS sel
 ## File Structure
 
 - `manifest.json`: Extension manifest (Manifest V3) with permissions, host_permissions, and background service worker
-- `background/background.js`: Background service worker for post-screenshot actions (tab creation)
+- `background/background.js`: Background service worker for post-screenshot actions (border glow animation trigger, tab creation)
 - `popup/popup.html`: Popup UI with 4 state sections, heatmap dropdown, and settings modal overlay
 - `popup/popup.css`: Popup styling including dropdown, loading indicators, modal, and form styles
-- `popup/popup.js`: Popup state management, heatmap selection/validation, message passing, and Matomo API integration
-- `content/content.js`: Core scroll tracking and expansion logic
+- `popup/popup.js`: Popup state management, heatmap selection/validation, screenshot verification, message passing, and Matomo API integration
+- `content/content.js`: Core scroll tracking, expansion logic, and visual feedback animations (scanner and border glow)
 - `icons/`: Extension icons (16x16, 48x48, 128x128)
 - `CLAUDE.md`: This file - architecture and implementation documentation
