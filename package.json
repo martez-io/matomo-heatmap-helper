@@ -1,38 +1,44 @@
 {
-  "name": "matomo-heatmap-helper",
-  "version": "2.0.0",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "dev": "wxt",
-    "build": "wxt build",
-    "build:firefox": "wxt build --browser firefox",
-    "zip": "wxt zip"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "Prepares pages with custom scroll containers for Matomo heatmap screenshots",
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.16",
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "@wxt-dev/module-react": "^1.1.5",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.16",
-    "typescript": "^5.9.3",
-    "wxt": "^0.20.11"
-  },
-  "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
-    "@tanstack/react-query": "^5.90.6",
-    "@wxt-dev/storage": "^1.2.6",
-    "lucide-react": "^0.552.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-hook-form": "^7.66.0",
-    "react-hot-toast": "^2.6.0",
-    "zod": "^4.1.12"
-  }
+    "name": "matomo-heatmap-helper",
+    "version": "1.0.0",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "dev": "wxt",
+        "dev:chrome": "wxt --browser chrome",
+        "dev:firefox": "wxt --browser firefox",
+        "build": "wxt build",
+        "build:firefox": "wxt build --browser firefox",
+        "build:firefox-watch": "wxt build --browser firefox --watch",
+        "build:chrome-watch": "wxt build --browser chrome --watch",
+        "test:firefox": "npm run build:firefox && echo '\nFirefox build complete. Load from: dist/firefox-mv3'",
+        "zip": "wxt zip",
+        "zip:firefox": "wxt zip --browser firefox"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "description": "Prepares pages with custom scroll containers for Matomo heatmap screenshots",
+    "devDependencies": {
+        "@tailwindcss/postcss": "^4.1.16",
+        "@types/react": "^19.2.2",
+        "@types/react-dom": "^19.2.2",
+        "@wxt-dev/module-react": "^1.1.5",
+        "autoprefixer": "^10.4.21",
+        "postcss": "^8.5.6",
+        "tailwindcss": "^4.1.16",
+        "typescript": "^5.9.3",
+        "wxt": "^0.20.11"
+    },
+    "dependencies": {
+        "@hookform/resolvers": "^5.2.2",
+        "@tanstack/react-query": "^5.90.6",
+        "@wxt-dev/storage": "^1.2.6",
+        "lucide-react": "^0.552.0",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "react-hook-form": "^7.66.0",
+        "react-hot-toast": "^2.6.0",
+        "zod": "^4.1.12"
+    }
 }

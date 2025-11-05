@@ -4,6 +4,8 @@ node_modules/
 # WXT Build Outputs & Generated Files
 .output/
 .wxt/
+web-ext.config.ts
+dist/
 
 # Environment Variables
 .env

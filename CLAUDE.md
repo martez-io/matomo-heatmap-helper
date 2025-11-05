@@ -9,20 +9,43 @@ A Chrome extension (Manifest V3) built with WXT, React, TypeScript, and Tailwind
 ## Development Commands
 
 ```bash
-# Development mode with hot reload
+# Development mode with hot reload (Chrome/Chromium)
 npm run dev
+npm run dev:chrome
 
-# Production build for Chrome
-npm run build
+# Production builds
+npm run build               # Chrome
+npm run build:firefox       # Firefox
 
-# Build for Firefox
-npm run build:firefox
+# Firefox testing workflow (see limitation below)
+npm run test:firefox        # Build and show load path
+npm run build:firefox-watch # Auto-rebuild on changes
 
-# Create distributable ZIP
-npm run zip
+# Create distributable ZIPs
+npm run zip                 # Chrome
+npm run zip:firefox         # Firefox
 ```
 
 After building, load the extension from `.output/chrome-mv3` (or `firefox-mv3`) in your browser's developer mode.
+
+### Firefox MV3 Development Limitation
+
+**Important**: Firefox Manifest V3 dev mode does **not** work with WXT due to Content Security Policy restrictions in Firefox. This is a known upstream issue ([#1626](https://github.com/wxt-dev/wxt/issues/1626)) waiting for Mozilla to fix.
+
+**Recommended Multi-Browser Workflow**:
+1. **Primary development**: Use Chrome with hot reload (`npm run dev`)
+2. **Firefox testing**: Build production and load manually:
+   ```bash
+   npm run test:firefox
+   # Load extension from: .output/firefox-mv3
+   ```
+3. **Continuous Firefox testing**: Use watch mode for auto-rebuilds:
+   ```bash
+   npm run build:firefox-watch
+   # Manually reload extension in Firefox after each rebuild
+   ```
+
+**Why this happens**: Running `npm run dev:firefox` will open Firefox but the extension won't work properly (WebSocket errors, MIME type errors, blank popup/pages) due to CSP blocking the dev server. Use production builds instead.
 
 ## Architecture Overview
 
