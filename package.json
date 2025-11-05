@@ -9,8 +9,6 @@
         "dev:firefox": "wxt --browser firefox",
         "build": "wxt build",
         "build:firefox": "wxt build --browser firefox",
-        "build:firefox-watch": "wxt build --browser firefox --watch",
-        "build:chrome-watch": "wxt build --browser chrome --watch",
         "test:firefox": "npm run build:firefox && echo '\nFirefox build complete. Load from: dist/firefox-mv3'",
         "zip": "wxt zip",
         "zip:firefox": "wxt zip --browser firefox"
