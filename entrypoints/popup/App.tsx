@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { browser } from 'wxt/browser';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Camera, Play, StopCircle, RotateCcw, Settings, Lock, Check } from 'lucide-react';
+import { Camera, RotateCcw, Settings, Lock, Check } from 'lucide-react';
 import { useHeatmaps } from '@/hooks/useHeatmaps';
 import { useScrollTracking } from '@/hooks/useScrollTracking';
 import { HeatmapSelector } from '@/components/popup/HeatmapSelector';
@@ -14,11 +14,12 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { getStorage, setStorage, getCredentials, removeStorage } from '@/lib/storage';
 import { sendToContentScript, getCurrentTab, triggerMatomoScreenshot, checkMatomoExists, sendToBackground } from '@/lib/messaging';
 import { createMatomoClient } from '@/lib/matomo-api';
+import { resolveSiteForCurrentTab } from '@/lib/site-resolver';
 import type { MatomoHeatmap } from '@/types/matomo';
 
 const queryClient = new QueryClient();
 
-type AppState = 'loading' | 'onboarding' | 'no-matomo' | 'selection' | 'tracking' | 'processing' | 'complete';
+type AppState = 'loading' | 'onboarding' | 'no-matomo' | 'no-site' | 'no-permission' | 'selection' | 'tracking' | 'processing' | 'complete';
 type ProcessingStep = 'validating' | 'expanding' | 'capturing' | 'verifying' | 'complete';
 
 interface PopupContentProps {
@@ -30,36 +31,36 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
   const [selectedHeatmap, setSelectedHeatmap] = useState<MatomoHeatmap | null>(null);
   const [processingStep, setProcessingStep] = useState<ProcessingStep>('validating');
   const [error, setError] = useState<string | null>(null);
-  const [hasMato, setHasMatomo] = useState(true);
   const [bypassedCheck, setBypassedCheck] = useState(false);
   const [isInteractiveMode, setIsInteractiveMode] = useState(false);
   const [lockedCount, setLockedCount] = useState(0);
+  const [resolvedSiteId, setResolvedSiteId] = useState<number | null>(null);
   const [siteName, setSiteName] = useState<string>('');
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const [cachedHeatmaps, setCachedHeatmaps] = useState<MatomoHeatmap[]>([]);
-  const { data: freshHeatmaps, isLoading: heatmapsLoading, error: heatmapsError, isFetching: heatmapsFetching, refetchFromServer } = useHeatmaps();
+  const { data: freshHeatmaps, isLoading: heatmapsLoading, error: heatmapsError, isFetching: heatmapsFetching, refetchFromServer } = useHeatmaps(resolvedSiteId);
   const heatmaps = freshHeatmaps ?? cachedHeatmaps;
   const trackingStatus = useScrollTracking(state === 'tracking');
   const hasAutoStarted = useRef(false);
 
-  // Pre-load cached heatmaps and site name immediately on mount
+  // Pre-load cached heatmaps immediately on mount (if site is resolved)
   useEffect(() => {
     async function loadCache() {
-      const creds = await getCredentials();
-      if (creds) {
-        setSiteName(creds.siteName);
-        const cache = await getStorage('cache:heatmaps');
-        if (cache && cache.siteId === creds.siteId) {
-          const isFresh = Date.now() - cache.timestamp < 5 * 60 * 1000;
-          if (isFresh) {
-            console.log('[Popup] Using cached heatmaps for instant display');
-            setCachedHeatmaps(cache.heatmaps);
-          }
+      if (!resolvedSiteId) return;
+
+      const cache = await getStorage('cache:heatmaps');
+      if (cache && cache[resolvedSiteId]) {
+        const siteCache = cache[resolvedSiteId];
+        const isFresh = Date.now() - siteCache.timestamp < 5 * 60 * 1000;
+        if (isFresh) {
+          console.log(`[Popup] Using cached heatmaps for site ${resolvedSiteId}`);
+          setCachedHeatmaps(siteCache.heatmaps);
         }
       }
     }
     loadCache();
-  }, []);
+  }, [resolvedSiteId]);
 
   // Effect 1: Restore selected heatmap from storage when heatmaps load
   useEffect(() => {
@@ -144,12 +145,31 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
       // Check if Matomo exists on page
       const tab = await getCurrentTab();
       const hasMatomoOnPage = await checkMatomoExists(tab.id!);
-      setHasMatomo(hasMatomoOnPage);
 
       if (!hasMatomoOnPage) {
         setState('no-matomo');
         return;
       }
+
+      // Resolve site for current domain
+      console.log('[Popup] Resolving site for current tab...');
+      const resolution = await resolveSiteForCurrentTab();
+
+      if (!resolution.success) {
+        if (resolution.error === 'no-site') {
+          setState('no-site');
+        } else if (resolution.error === 'no-permission') {
+          setState('no-permission');
+        } else {
+          setState('onboarding');
+        }
+        return;
+      }
+
+      // Site resolved successfully
+      console.log(`[Popup] Resolved to site: ${resolution.siteName} (ID: ${resolution.siteId})`);
+      setResolvedSiteId(resolution.siteId);
+      setSiteName(resolution.siteName);
 
       // Check if content script is already tracking
       try {
@@ -170,6 +190,12 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
     }
   }
 
+  async function retryInitialize() {
+    setIsRetrying(true);
+    await initialize();
+    setIsRetrying(false);
+  }
+
   async function handleSelectHeatmap(heatmap: MatomoHeatmap) {
     setSelectedHeatmap(heatmap);
     await setStorage('ui:selectedHeatmapId', heatmap.idsitehsr);
@@ -185,10 +211,10 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
         heatmapId: selectedHeatmap.idsitehsr,
       });
 
-      if (response.success) {
+      if ('success' in response && response.success) {
         setState('tracking');
         setError(null);
-      } else {
+      } else if ('success' in response && !response.success) {
         setError('Failed to start tracking');
       }
     } catch (err) {
@@ -211,7 +237,7 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
           heatmapId: heatmap.idsitehsr,
         });
 
-        if (!response.success) {
+        if ('success' in response && !response.success) {
           setError('Failed to switch heatmap');
         }
       } catch (err) {
@@ -226,10 +252,10 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
           heatmapId: heatmap.idsitehsr,
         });
 
-        if (response.success) {
+        if ('success' in response && response.success) {
           setState('tracking');
           setError(null);
-        } else {
+        } else if ('success' in response && !response.success) {
           setError('Failed to start tracking');
         }
       } catch (err) {
@@ -362,8 +388,8 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
   }
 
   async function handleReset() {
-    setState(hasMatomo || bypassedCheck ? 'selection' : 'no-matomo');
-    setError(null);
+    // Re-initialize to check current state
+    initialize();
   }
 
   async function handleRestore() {
@@ -411,6 +437,74 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
           </Button>
           <Button onClick={() => { setBypassedCheck(true); setState('selection'); }}>
             Continue Anyway
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === 'no-site') {
+    return (
+      <div className="space-y-4">
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+          <h2 className="font-bold text-amber-900 mb-2">⚠️ Site Not Found</h2>
+          <p className="text-sm text-amber-800">
+            The current domain is not listed in any of your sites in the Matomo dashboard.
+          </p>
+        </div>
+        <div className="text-sm text-gray-600 space-y-1">
+          <p className="font-medium">To use this extension:</p>
+          <ul className="list-disc list-inside ml-2 space-y-1">
+            <li>Add this domain to your Matomo sites</li>
+            <li>Ensure the site is properly configured</li>
+            <li>Refresh this popup after adding the site</li>
+          </ul>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={retryInitialize}
+            variant="secondary"
+            isLoading={isRetrying}
+            disabled={isRetrying}
+          >
+            Retry Detection
+          </Button>
+          <Button onClick={onOpenSettings} disabled={isRetrying}>
+            Open Settings
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === 'no-permission') {
+    return (
+      <div className="space-y-4">
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+          <h2 className="font-bold text-red-900 mb-2">🔒 Insufficient Permissions</h2>
+          <p className="text-sm text-red-800">
+            You need at least write permission for this site to capture heatmap screenshots.
+          </p>
+        </div>
+        <div className="text-sm text-gray-600 space-y-1">
+          <p className="font-medium">To use this extension:</p>
+          <ul className="list-disc list-inside ml-2 space-y-1">
+            <li>Request write access for this site in Matomo</li>
+            <li>Ask your Matomo administrator for permissions</li>
+            <li>Refresh this popup after permissions are granted</li>
+          </ul>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={retryInitialize}
+            variant="secondary"
+            isLoading={isRetrying}
+            disabled={isRetrying}
+          >
+            Retry Detection
+          </Button>
+          <Button onClick={onOpenSettings} disabled={isRetrying}>
+            Open Settings
           </Button>
         </div>
       </div>
@@ -535,7 +629,7 @@ export default function App() {
 
     // Create a new tab with the options page
     browser.tabs.create({
-      url: browser.runtime.getURL('options.html'),
+      url: '/options.html',
       openerTabId: currentTab?.id,
     });
   }

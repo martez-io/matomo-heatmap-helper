@@ -20,8 +20,6 @@ export function ValidationStatus({ status, message }: ValidationStatusProps) {
     error: <AlertCircle className="h-5 w-5" />,
   };
 
-  if ( status === 'validated') return null;
-
   return (
     <div className={`flex items-start gap-3 p-4 border-2 rounded-lg ${styles[status]}`}>
       {icons[status]}

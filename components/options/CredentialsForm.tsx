@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 
 /**
@@ -41,11 +41,17 @@ export function CredentialsForm({ onValidate, isLoading, validationStatus, initi
     register,
     handleSubmit,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<CredentialsFormData>({
     resolver: zodResolver(credentialsSchema),
     defaultValues: initialValues,
   });
+
+  // Sync form values when initialValues prop changes
+  useEffect(() => {
+    reset(initialValues || { apiUrl: '', authToken: '' });
+  }, [initialValues, reset]);
 
   const handleUrlBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const sanitized = sanitizeUrl(e.target.value);
@@ -120,17 +126,8 @@ export function CredentialsForm({ onValidate, isLoading, validationStatus, initi
         type="submit"
         fullWidth
         isLoading={isLoading}
-        disabled={validationStatus === 'validated'}
-        className={validationStatus === 'validated' ? 'border-2 border-green-500 !text-green-500 bg-transparent hover:!bg-transparent' : ''}
       >
-        {validationStatus === 'validated' ? (
-          <>
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Valid Credentials
-          </>
-        ) : (
-          'Validate & Load Sites'
-        )}
+        Validate and Save
       </Button>
     </form>
   );

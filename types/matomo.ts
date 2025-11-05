@@ -34,8 +34,6 @@ export interface MatomoSite {
 export interface MatomoCredentials {
   apiUrl: string;
   authToken: string;
-  siteId: number;
-  siteName: string;
 }
 
 export interface HeatmapVerificationResponse {

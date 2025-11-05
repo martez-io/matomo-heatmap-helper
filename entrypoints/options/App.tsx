@@ -1,22 +1,16 @@
 import { useState, useEffect } from 'react';
-import { browser } from 'wxt/browser';
-import { Settings, Trash2, CheckCircle } from 'lucide-react';
+import { Settings, Trash2 } from 'lucide-react';
 import { createMatomoClient } from '@/lib/matomo-api';
-import { getCredentials, saveCredentials, clearCredentials } from '@/lib/storage';
+import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites } from '@/lib/storage';
 import { CredentialsForm } from '@/components/options/CredentialsForm';
-import { SiteSelector } from '@/components/options/SiteSelector';
 import { ValidationStatus } from '@/components/options/ValidationStatus';
 import { Button } from '@/components/shared/Button';
-import type { MatomoSite } from '@/types/matomo';
 
 type ValidationState = 'idle' | 'loading' | 'validated' | 'credentials-changed' | 'error';
 
 export default function App() {
   const [validationStatus, setValidationStatus] = useState<ValidationState>('idle');
   const [validationMessage, setValidationMessage] = useState('');
-  const [sites, setSites] = useState<MatomoSite[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
-  const [selectedSiteName, setSelectedSiteName] = useState<string | null>(null);
   const [currentCredentials, setCurrentCredentials] = useState<{
     apiUrl: string;
     authToken: string;
@@ -26,20 +20,10 @@ export default function App() {
     authToken: string;
   } | null>(null);
   const [hasExistingCredentials, setHasExistingCredentials] = useState(false);
-  const [openerTabId, setOpenerTabId] = useState<number | null>(null);
-  const [justSaved, setJustSaved] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Load existing credentials on mount and get opener tab
+  // Load existing credentials on mount
   useEffect(() => {
     loadExistingCredentials();
-
-    // Get the tab that opened this options page
-    browser.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.openerTabId) {
-        setOpenerTabId(tabs[0].openerTabId);
-      }
-    });
   }, []);
 
   // Detect credential changes to re-enable validation button
@@ -62,11 +46,9 @@ export default function App() {
         apiUrl: creds.apiUrl,
         authToken: creds.authToken,
       });
-      setSelectedSiteId(creds.siteId);
-      setSelectedSiteName(creds.siteName);
       setHasExistingCredentials(true);
 
-      // Auto-load sites
+      // Auto-validate to ensure sites are cached
       await handleValidate(creds.apiUrl, creds.authToken);
     }
   }
@@ -83,60 +65,41 @@ export default function App() {
         throw new Error('No sites with write access found for this token');
       }
 
-      setSites(fetchedSites);
+      // Cache sites for later use in popup
+      await saveAvailableSites(fetchedSites);
+
+      // Auto-save credentials after successful validation
+      await saveCredentials({ apiUrl, authToken });
+
       setCurrentCredentials({ apiUrl, authToken });
       setValidatedCredentials({ apiUrl, authToken });
       setValidationStatus('validated');
-      setValidationMessage('');
+      setValidationMessage(`Connected successfully! Found ${fetchedSites.length} site(s) with write access. Settings saved.`);
+      setHasExistingCredentials(true);
+
+      // Keep success message visible for 2 seconds
+      setTimeout(() => {
+        setValidationStatus('idle');
+        setValidationMessage('');
+      }, 2000);
     } catch (error) {
       setValidationStatus('error');
       setValidationMessage(
         `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
-      setSites([]);
     }
   }
 
-  async function handleSave() {
-    if (!currentCredentials || !selectedSiteId || !selectedSiteName) {
-      return;
-    }
-
-    try {
-      await saveCredentials({
-        apiUrl: currentCredentials.apiUrl,
-        authToken: currentCredentials.authToken,
-        siteId: selectedSiteId,
-        siteName: selectedSiteName,
-      });
-
-      setValidationStatus('validated');
-      setValidationMessage(`✓ Settings saved! Using site: ${selectedSiteName}`);
-      setHasExistingCredentials(true);
-      setJustSaved(true);
-
-      // Reset the "just saved" state after 2 seconds
-      setTimeout(() => {
-        setJustSaved(false);
-      }, 2000);
-    } catch (error) {
-      setValidationStatus('error');
-      setValidationMessage('Failed to save settings');
-    }
-  }
 
   async function handleClear() {
-    if (!confirm('Are you sure you want to clear all Matomo API credentials?')) {
+    if (!confirm('Are you sure you want to clear all Matomo API credentials and cached data?')) {
       return;
     }
 
     await clearCredentials();
     setCurrentCredentials(null);
-    setSelectedSiteId(null);
-    setSelectedSiteName(null);
-    setSites([]);
     setValidationStatus('idle');
-    setValidationMessage('Credentials cleared successfully');
+    setValidationMessage('✓ All settings cleared successfully');
     setHasExistingCredentials(false);
 
     setTimeout(() => {
@@ -145,49 +108,31 @@ export default function App() {
     }, 2000);
   }
 
-  async function handleRefreshSites() {
-    if (!validatedCredentials) {
-      return;
-    }
-
-    setIsRefreshing(true);
-
-    try {
-      const client = createMatomoClient(validatedCredentials.apiUrl, validatedCredentials.authToken);
-      const fetchedSites = await client.getSitesWithWriteAccess();
-
-      if (!Array.isArray(fetchedSites) || fetchedSites.length === 0) {
-        throw new Error('No sites with write access found for this token');
-      }
-
-      setSites(fetchedSites);
-      setValidationMessage('Sites refreshed successfully');
-
-      setTimeout(() => {
-        setValidationMessage('');
-      }, 2000);
-    } catch (error) {
-      setValidationMessage(
-        `Refresh failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    } finally {
-      setIsRefreshing(false);
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto py-12 px-4">
         <div className="bg-white rounded-lg shadow-md p-8">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-8">
-            <Settings className="h-8 w-8 text-primary-600" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Matomo API Settings</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Configure your Matomo instance credentials and site selection
-              </p>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <Settings className="h-8 w-8 text-primary-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Matomo API Settings</h1>
+                <p className="text-sm text-gray-600 mt-1">
+                  Configure your Matomo instance credentials
+                </p>
+              </div>
             </div>
+            {hasExistingCredentials && (
+              <Button
+                onClick={handleClear}
+                variant="secondary"
+                className="flex items-center gap-2"
+              >
+                <Trash2 size={16} />
+                Clear
+              </Button>
+            )}
           </div>
 
           {/* Credentials Form */}
@@ -204,45 +149,6 @@ export default function App() {
           <div className="mb-6">
             <ValidationStatus status={validationStatus} message={validationMessage} />
           </div>
-
-          {/* Site Selection */}
-          {sites.length > 0 && (
-            <div className="mb-6">
-              <SiteSelector
-                sites={sites}
-                selectedSiteId={selectedSiteId}
-                onSelectSite={(siteId, siteName) => {
-                  setSelectedSiteId(siteId);
-                  setSelectedSiteName(siteName);
-                }}
-                onRefresh={handleRefreshSites}
-                isRefreshing={isRefreshing}
-              />
-            </div>
-          )}
-
-          {/* Actions */}
-          {sites.length > 0 && (
-            <div className="flex gap-3">
-              <Button
-                onClick={handleSave}
-                disabled={!selectedSiteId}
-                fullWidth
-              >
-                {justSaved ? 'Settings Saved!' : 'Save Settings'}
-              </Button>
-              {hasExistingCredentials && (
-                <Button
-                  onClick={handleClear}
-                  variant="secondary"
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 size={16} />
-                  Clear
-                </Button>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Footer */}

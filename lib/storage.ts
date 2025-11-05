@@ -47,22 +47,18 @@ export function watchStorage<K extends keyof StorageSchema>(
  * Get credentials from storage
  */
 export async function getCredentials() {
-  const [apiUrl, authToken, siteId, siteName] = await Promise.all([
+  const [apiUrl, authToken] = await Promise.all([
     getStorage('matomo:apiUrl'),
     getStorage('matomo:authToken'),
-    getStorage('matomo:siteId'),
-    getStorage('matomo:siteName'),
   ]);
 
-  if (!apiUrl || !authToken || !siteId || !siteName) {
+  if (!apiUrl || !authToken) {
     return null;
   }
 
   return {
     apiUrl,
     authToken,
-    siteId,
-    siteName,
   };
 }
 
@@ -72,14 +68,10 @@ export async function getCredentials() {
 export async function saveCredentials(credentials: {
   apiUrl: string;
   authToken: string;
-  siteId: number;
-  siteName: string;
 }) {
   await Promise.all([
     setStorage('matomo:apiUrl', credentials.apiUrl),
     setStorage('matomo:authToken', credentials.authToken),
-    setStorage('matomo:siteId', credentials.siteId),
-    setStorage('matomo:siteName', credentials.siteName),
   ]);
 }
 
@@ -90,9 +82,78 @@ export async function clearCredentials() {
   await Promise.all([
     removeStorage('matomo:apiUrl'),
     removeStorage('matomo:authToken'),
-    removeStorage('matomo:siteId'),
-    removeStorage('matomo:siteName'),
+    removeStorage('matomo:domainSiteMap'),
+    removeStorage('matomo:availableSites'),
+    removeStorage('cache:heatmaps'),
+    removeStorage('ui:selectedHeatmapId'),
   ]);
+}
+
+/**
+ * Get domain-to-site mapping from cache
+ */
+export async function getDomainSiteMapping(domain: string) {
+  const domainMap = await getStorage('matomo:domainSiteMap');
+
+  if (!domainMap || !domainMap[domain]) {
+    return null;
+  }
+
+  const mapping = domainMap[domain];
+
+  // Check if cache is still valid (24 hours)
+  if (!isCacheValid(mapping.timestamp, 24 * 60 * 60 * 1000)) {
+    return null;
+  }
+
+  return mapping;
+}
+
+/**
+ * Save domain-to-site mapping to cache
+ */
+export async function saveDomainSiteMapping(
+  domain: string,
+  siteId: number,
+  siteName: string
+) {
+  const domainMap = (await getStorage('matomo:domainSiteMap')) || {};
+
+  domainMap[domain] = {
+    siteId,
+    siteName,
+    timestamp: Date.now(),
+  };
+
+  await setStorage('matomo:domainSiteMap', domainMap);
+}
+
+/**
+ * Get available sites with write access from cache
+ */
+export async function getAvailableSites() {
+  const cached = await getStorage('matomo:availableSites');
+
+  if (!cached) {
+    return null;
+  }
+
+  // Check if cache is still valid (5 minutes)
+  if (!isCacheValid(cached.timestamp, 5 * 60 * 1000)) {
+    return null;
+  }
+
+  return cached.sites;
+}
+
+/**
+ * Save available sites to cache
+ */
+export async function saveAvailableSites(sites: Array<{ idsite: number; name: string; main_url: string }>) {
+  await setStorage('matomo:availableSites', {
+    sites,
+    timestamp: Date.now(),
+  });
 }
 
 /**

@@ -106,6 +106,31 @@ export class MatomoApiClient {
   }
 
   /**
+   * Get site IDs that match a given URL/domain
+   */
+  async getSitesIdFromSiteUrl(url: string): Promise<number[]> {
+    const result = await this.call<number | number[] | Array<{ idsite: number }>>({
+      method: 'SitesManager.getSitesIdFromSiteUrl',
+      url: url,
+      token_auth: this.authToken,
+    });
+
+    // Handle different response formats from the API
+    if (Array.isArray(result)) {
+      // Check if it's an array of objects with idsite property
+      if (result.length > 0 && typeof result[0] === 'object' && 'idsite' in result[0]) {
+        return result.map((item) => (item as { idsite: number }).idsite);
+      }
+      // Already an array of numbers
+      return result as number[];
+    } else if (typeof result === 'number') {
+      return [result];
+    }
+
+    return [];
+  }
+
+  /**
    * Get heatmaps for a site
    */
   async getHeatmaps(siteId: number): Promise<MatomoHeatmap[]> {
