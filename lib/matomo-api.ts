@@ -43,22 +43,41 @@ export class MatomoApiClient {
         body: formData.toString(),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Always try to parse JSON response, regardless of status code
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        // If JSON parsing fails, throw with status info
+        throw new Error(`HTTP ${response.status}: ${response.statusText} (Invalid JSON response)`);
       }
 
-      const data = await response.json();
+      console.log('[MatomoAPI] Response:', data);
 
-      // Check for Matomo API error response
-      if (data.result === 'error') {
-        throw new Error(data.message || 'Matomo API returned an error');
+      // Check for Matomo API error response (handles both 200 and 4xx/5xx responses)
+      if (data.result === 'error' && data.message) {
+        throw new Error(data.message);
+      }
+
+      // Check for other error structures that Matomo might return
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.message && !response.ok) {
+        throw new Error(data.message);
+      }
+
+      // If response is not OK and we haven't extracted an error message yet
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       return data as T;
     } catch (error) {
       console.error('[MatomoAPI] Call failed:', error);
 
-      // Provide user-friendly error messages
+      // Provide user-friendly error messages for network issues
       if (
         error instanceof Error &&
         (error.message.includes('NetworkError') || error.message.includes('Failed to fetch'))
@@ -69,6 +88,7 @@ export class MatomoApiClient {
           'CORS error. The Matomo server may need to allow requests from this extension.'
         );
       } else {
+        // Re-throw the error with the original message preserved
         throw error;
       }
     }
