@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { createMatomoClient } from '@/lib/matomo-api';
-import { getCredentials, getStorage, setStorage } from '@/lib/storage';
+import { getCredentials, getStorage, setStorage, removeStorage } from '@/lib/storage';
 import type { MatomoHeatmap } from '@/types/matomo';
 
 export function useHeatmaps() {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['heatmaps'],
     queryFn: async () => {
       const credentials = await getCredentials();
@@ -25,6 +25,7 @@ export function useHeatmaps() {
       // Fetch fresh data
       const client = createMatomoClient(credentials.apiUrl, credentials.authToken);
       const heatmaps = await client.getHeatmaps(credentials.siteId);
+      console.log(`[useHeatmaps] Fetched ${heatmaps.length} heatmaps from API`);
 
       // Cache the result
       await setStorage('cache:heatmaps', {
@@ -38,6 +39,18 @@ export function useHeatmaps() {
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 1,
   });
+
+  // Wrapper that clears cache before refetching to force server fetch
+  const refetchFromServer = async () => {
+    console.log('[useHeatmaps] Force refresh - clearing cache and fetching from server');
+    await removeStorage('cache:heatmaps');
+    return query.refetch({ cancelRefetch: true });
+  };
+
+  return {
+    ...query,
+    refetchFromServer,
+  };
 }
 
 export function useSelectedHeatmap() {

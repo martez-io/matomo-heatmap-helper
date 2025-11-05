@@ -28,6 +28,7 @@ export default function App() {
   const [hasExistingCredentials, setHasExistingCredentials] = useState(false);
   const [openerTabId, setOpenerTabId] = useState<number | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Load existing credentials on mount and get opener tab
   useEffect(() => {
@@ -144,6 +145,36 @@ export default function App() {
     }, 2000);
   }
 
+  async function handleRefreshSites() {
+    if (!validatedCredentials) {
+      return;
+    }
+
+    setIsRefreshing(true);
+
+    try {
+      const client = createMatomoClient(validatedCredentials.apiUrl, validatedCredentials.authToken);
+      const fetchedSites = await client.getSitesWithWriteAccess();
+
+      if (!Array.isArray(fetchedSites) || fetchedSites.length === 0) {
+        throw new Error('No sites with write access found for this token');
+      }
+
+      setSites(fetchedSites);
+      setValidationMessage('Sites refreshed successfully');
+
+      setTimeout(() => {
+        setValidationMessage('');
+      }, 2000);
+    } catch (error) {
+      setValidationMessage(
+        `Refresh failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto py-12 px-4">
@@ -184,6 +215,8 @@ export default function App() {
                   setSelectedSiteId(siteId);
                   setSelectedSiteName(siteName);
                 }}
+                onRefresh={handleRefreshSites}
+                isRefreshing={isRefreshing}
               />
             </div>
           )}

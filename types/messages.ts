@@ -35,6 +35,7 @@ export type ContentScriptMessage =
   | { action: 'expandElements' }
   | { action: 'restore' }
   | { action: 'showScanner' }
+  | { action: 'hideScanner' }
   | { action: 'showBorderGlow' }
   | { action: 'enterInteractiveMode' }
   | { action: 'exitInteractiveMode' }

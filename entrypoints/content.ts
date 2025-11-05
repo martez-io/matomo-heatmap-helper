@@ -83,6 +83,11 @@ export default defineContentScript({
             sendResponse({ success: true });
             break;
 
+          case 'hideScanner':
+            hideScanner();
+            sendResponse({ success: true });
+            break;
+
           case 'showBorderGlow':
             showBorderGlow();
             sendResponse({ success: true });
@@ -869,6 +874,23 @@ function showScanner() {
   });
 
   console.log('[Content] Scanner overlay injected');
+}
+
+// Hide scanner animation
+function hideScanner() {
+  // Remove the CSS class immediately (always, regardless of whether scanner element exists)
+  document.documentElement.classList.remove('mhh-scanner-active');
+
+  const scanner = document.getElementById('matomo-scanner-overlay');
+  if (scanner) {
+    scanner.style.opacity = '0';
+    setTimeout(() => {
+      scanner.remove();
+    }, 500); // Match transition duration
+    console.log('[Content] Scanner overlay removed');
+  } else {
+    console.log('[Content] Scanner overlay not found, class removed');
+  }
 }
 
 // Show border glow animation

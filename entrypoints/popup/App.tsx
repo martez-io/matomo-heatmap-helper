@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { browser } from 'wxt/browser';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Camera, Play, StopCircle, RotateCcw, Settings, Lock, Check } from 'lucide-react';
@@ -11,7 +11,7 @@ import { Onboarding } from '@/components/popup/Onboarding';
 import { Button } from '@/components/shared/Button';
 import { ErrorMessage } from '@/components/shared/ErrorMessage';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { getStorage, setStorage, getCredentials } from '@/lib/storage';
+import { getStorage, setStorage, getCredentials, removeStorage } from '@/lib/storage';
 import { sendToContentScript, getCurrentTab, triggerMatomoScreenshot, checkMatomoExists, sendToBackground } from '@/lib/messaging';
 import { createMatomoClient } from '@/lib/matomo-api';
 import type { MatomoHeatmap } from '@/types/matomo';
@@ -34,17 +34,20 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
   const [bypassedCheck, setBypassedCheck] = useState(false);
   const [isInteractiveMode, setIsInteractiveMode] = useState(false);
   const [lockedCount, setLockedCount] = useState(0);
+  const [siteName, setSiteName] = useState<string>('');
 
   const [cachedHeatmaps, setCachedHeatmaps] = useState<MatomoHeatmap[]>([]);
-  const { data: freshHeatmaps, isLoading: heatmapsLoading, error: heatmapsError, isFetching: heatmapsFetching } = useHeatmaps();
-  const heatmaps = freshHeatmaps || cachedHeatmaps;
+  const { data: freshHeatmaps, isLoading: heatmapsLoading, error: heatmapsError, isFetching: heatmapsFetching, refetchFromServer } = useHeatmaps();
+  const heatmaps = freshHeatmaps ?? cachedHeatmaps;
   const trackingStatus = useScrollTracking(state === 'tracking');
+  const hasAutoStarted = useRef(false);
 
-  // Pre-load cached heatmaps immediately on mount
+  // Pre-load cached heatmaps and site name immediately on mount
   useEffect(() => {
     async function loadCache() {
       const creds = await getCredentials();
       if (creds) {
+        setSiteName(creds.siteName);
         const cache = await getStorage('cache:heatmaps');
         if (cache && cache.siteId === creds.siteId) {
           const isFresh = Date.now() - cache.timestamp < 5 * 60 * 1000;
@@ -58,9 +61,17 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
     loadCache();
   }, []);
 
-  // Restore selected heatmap when heatmaps load
+  // Effect 1: Restore selected heatmap from storage when heatmaps load
   useEffect(() => {
     async function restoreSelection() {
+      // If heatmaps is empty, clear any stale selection
+      if (heatmaps.length === 0 && selectedHeatmap !== null) {
+        console.log('[Popup] No heatmaps available, clearing selection');
+        setSelectedHeatmap(null);
+        await removeStorage('ui:selectedHeatmapId');
+        return;
+      }
+
       if (heatmaps.length > 0 && !selectedHeatmap) {
         const savedHeatmapId = await getStorage('ui:selectedHeatmapId');
         if (savedHeatmapId) {
@@ -68,18 +79,34 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
           if (heatmap) {
             console.log('[Popup] Restored selected heatmap:', heatmap.name);
             setSelectedHeatmap(heatmap);
-
-            // Auto-start tracking if we're in selection state (not already tracking)
-            if (state === 'selection') {
-              console.log('[Popup] Auto-starting tracking for restored heatmap');
-              handleHeatmapChange(heatmap);
-            }
+          } else {
+            // Heatmap ID exists but not in current list - clear it
+            console.log('[Popup] Saved heatmap ID not found in list, clearing');
+            await removeStorage('ui:selectedHeatmapId');
           }
         }
       }
     }
     restoreSelection();
-  }, [heatmaps, selectedHeatmap, state]);
+  }, [heatmaps, selectedHeatmap]);
+
+  // Effect 2: Auto-start tracking when we have a selected heatmap and are in selection state
+  useEffect(() => {
+    // Only auto-start if:
+    // 1. We have a selected heatmap
+    // 2. We're in the selection state
+    // 3. We haven't already auto-started
+    if (selectedHeatmap && state === 'selection' && !hasAutoStarted.current) {
+      console.log('[Popup] Auto-starting tracking for selected heatmap:', selectedHeatmap.name);
+      hasAutoStarted.current = true;
+      handleHeatmapChange(selectedHeatmap);
+    }
+
+    // Reset the flag when state changes away from selection/tracking
+    if (state !== 'selection' && state !== 'tracking') {
+      hasAutoStarted.current = false;
+    }
+  }, [selectedHeatmap, state]);
 
   // Check Matomo and initialize on mount
   useEffect(() => {
@@ -320,6 +347,15 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
       }
     } catch (err) {
       console.error('[Popup] Screenshot error:', err);
+
+      // Hide the scanner animation when error occurs
+      try {
+        const tab = await getCurrentTab();
+        await sendToContentScript(tab.id!, { action: 'hideScanner' });
+      } catch (scannerErr) {
+        console.error('[Popup] Failed to hide scanner:', scannerErr);
+      }
+
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
       setState('tracking');
     }
@@ -393,6 +429,8 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
           isRefetching={heatmapsFetching && !heatmapsLoading}
           error={heatmapsError as Error | null}
           onOpenSettings={onOpenSettings}
+          siteName={siteName}
+          onRefetch={() => refetchFromServer()}
         />
         {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
       </div>
@@ -411,6 +449,8 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
           isRefetching={heatmapsFetching && !heatmapsLoading}
           error={heatmapsError as Error | null}
           onOpenSettings={onOpenSettings}
+          siteName={siteName}
+          onRefetch={() => refetchFromServer()}
         />
         <ScrollTracker
           count={trackingStatus.scrolledCount}
