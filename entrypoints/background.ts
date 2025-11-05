@@ -1,10 +1,11 @@
+import { browser } from 'wxt/browser';
 import type { BackgroundMessage, BackgroundResponse } from '@/types/messages';
 
 export default defineBackground({
   main() {
     console.log('[Background] Service worker initialized');
 
-    chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
+    browser.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
       console.log('[Background] Received message:', message);
 
       if (message.action === 'onSuccessfulScreenshot') {
@@ -25,14 +26,14 @@ async function handleSuccessfulScreenshot(tabId: number, url: string): Promise<B
 
   try {
     // Send message to content script to show border glow
-    await chrome.tabs.sendMessage(tabId, { action: 'showBorderGlow' });
+    await browser.tabs.sendMessage(tabId, { action: 'showBorderGlow' });
 
     // Wait for animation to complete (1.5s)
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Open heatmap tab
     console.log('[Background] Opening heatmap tab:', url);
-    const tab = await chrome.tabs.create({ url, active: true });
+    const tab = await browser.tabs.create({ url, active: true });
 
     console.log('[Background] Heatmap tab created:', tab.id);
     return { success: true, tabId: tab.id };

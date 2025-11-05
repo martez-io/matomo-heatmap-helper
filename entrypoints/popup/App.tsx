@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { browser } from 'wxt/browser';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Camera, Play, StopCircle, RotateCcw, Settings, Lock, Check } from 'lucide-react';
 import { useHeatmaps } from '@/hooks/useHeatmaps';
@@ -489,12 +490,12 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
 export default function App() {
   async function openSettings() {
     // Get the current tab ID to pass as opener
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     const currentTab = tabs[0];
 
     // Create a new tab with the options page
-    chrome.tabs.create({
-      url: chrome.runtime.getURL('options.html'),
+    browser.tabs.create({
+      url: browser.runtime.getURL('options.html'),
       openerTabId: currentTab?.id,
     });
   }

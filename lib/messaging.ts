@@ -2,6 +2,7 @@
  * Type-safe messaging utilities for extension communication
  */
 
+import { browser } from 'wxt/browser';
 import type {
   ContentScriptMessage,
   ContentScriptResponse,
@@ -18,9 +19,9 @@ export async function sendToContentScript(
   message: ContentScriptMessage
 ): Promise<ContentScriptResponse> {
   return new Promise((resolve, reject) => {
-    chrome.tabs.sendMessage(tabId, message, (response: ContentScriptResponse) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
+    browser.tabs.sendMessage(tabId, message, (response: ContentScriptResponse) => {
+      if (browser.runtime.lastError) {
+        reject(new Error(browser.runtime.lastError.message));
       } else {
         resolve(response);
       }
@@ -33,9 +34,9 @@ export async function sendToContentScript(
  */
 export async function sendToBackground(message: BackgroundMessage): Promise<BackgroundResponse> {
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response: BackgroundResponse) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
+    browser.runtime.sendMessage(message, (response: BackgroundResponse) => {
+      if (browser.runtime.lastError) {
+        reject(new Error(browser.runtime.lastError.message));
       } else {
         resolve(response);
       }
@@ -51,7 +52,7 @@ export async function executeInPageContext<T = any>(
   func: (...args: any[]) => T,
   args: any[] = []
 ): Promise<T> {
-  const results = await chrome.scripting.executeScript({
+  const results = await browser.scripting.executeScript({
     target: { tabId },
     world: 'MAIN', // Run in page context to access window._paq
     func,
@@ -122,8 +123,8 @@ export async function checkMatomoExists(tabId: number): Promise<boolean> {
 /**
  * Get current active tab
  */
-export async function getCurrentTab(): Promise<chrome.tabs.Tab> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+export async function getCurrentTab(): Promise<browser.tabs.Tab> {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) {
     throw new Error('No active tab found');
   }

@@ -1,3 +1,4 @@
+import { browser } from 'wxt/browser';
 import type { ContentScriptMessage, ContentScriptResponse, ScrollTrackerStatus } from '@/types/messages';
 
 // Global state
@@ -46,7 +47,7 @@ export default defineContentScript({
     injectStyles();
 
     // Listen for messages from popup
-    chrome.runtime.onMessage.addListener((request: ContentScriptMessage, _sender, sendResponse) => {
+    browser.runtime.onMessage.addListener((request: ContentScriptMessage, _sender, sendResponse) => {
       console.log('[Content] Message received:', request);
 
       try {

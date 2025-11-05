@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { browser } from 'wxt/browser';
 import { Settings, Trash2, CheckCircle } from 'lucide-react';
 import { createMatomoClient } from '@/lib/matomo-api';
 import { getCredentials, saveCredentials, clearCredentials } from '@/lib/storage';
@@ -33,7 +34,7 @@ export default function App() {
     loadExistingCredentials();
 
     // Get the tab that opened this options page
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    browser.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.openerTabId) {
         setOpenerTabId(tabs[0].openerTabId);
       }

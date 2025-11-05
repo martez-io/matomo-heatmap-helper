@@ -57,9 +57,9 @@ This project uses [WXT](https://wxt.dev/) - a modern framework for building brow
 
 ### Key Architectural Patterns
 
-**Dual Execution Context**: The extension uses both `ISOLATED` (content script default) and `MAIN` (page context) worlds. Matomo API calls must execute in `MAIN` world via `chrome.scripting.executeScript({ world: 'MAIN' })` to access page's `window._paq` object. See `lib/messaging.ts:executeInPageContext()`.
+**Dual Execution Context**: The extension uses both `ISOLATED` (content script default) and `MAIN` (page context) worlds. Matomo API calls must execute in `MAIN` world via `browser.scripting.executeScript({ world: 'MAIN' })` to access page's `window._paq` object. See `lib/messaging.ts:executeInPageContext()`.
 
-**Type-Safe Messaging**: All Chrome extension message passing uses strongly typed interfaces defined in `types/messages.ts`. Helper functions in `lib/messaging.ts` provide type safety: `sendToContentScript()`, `sendToBackground()`, `executeInPageContext()`.
+**Type-Safe Messaging**: All extension message passing uses strongly typed interfaces defined in `types/messages.ts`. Helper functions in `lib/messaging.ts` provide type safety and use WXT's `browser` API: `sendToContentScript()`, `sendToBackground()`, `executeInPageContext()`.
 
 **Storage Abstraction**: Uses WXT's storage utilities wrapped in type-safe helpers (`lib/storage.ts`) with a centralized schema (`types/storage.ts`). Storage keys are namespaced (e.g., `matomo:apiUrl`, `ui:selectedHeatmapId`, `cache:heatmaps`).
 
@@ -70,7 +70,7 @@ This project uses [WXT](https://wxt.dev/) - a modern framework for building brow
 
 ### Message Flow
 
-**Popup → Content Script** (via `chrome.tabs.sendMessage()`):
+**Popup → Content Script** (via `browser.tabs.sendMessage()`):
 - `startTracking`: Initialize scroll tracking with heatmap ID
 - `stopTracking`: Stop tracking and clear state
 - `getStatus`: Get current scroll tracking status (polled every 500ms)
@@ -79,13 +79,13 @@ This project uses [WXT](https://wxt.dev/) - a modern framework for building brow
 - `showScanner`: Inject scanner overlay animation
 - `showBorderGlow`: Show border glow animation
 
-**Popup → Background Worker** (via `chrome.runtime.sendMessage()`):
+**Popup → Background Worker** (via `browser.runtime.sendMessage()`):
 - `onSuccessfulScreenshot`: Sent after successful screenshot with heatmap URL and tabId
 
-**Background → Content Script** (via `chrome.tabs.sendMessage()`):
+**Background → Content Script** (via `browser.tabs.sendMessage()`):
 - `showBorderGlow`: Trigger border glow animation before tab redirect
 
-**Popup → Page Context** (via `chrome.scripting.executeScript({ world: 'MAIN' })`):
+**Popup → Page Context** (via `browser.scripting.executeScript({ world: 'MAIN' })`):
 - `triggerMatomoScreenshot()`: Executes `window._paq.push(['HeatmapSessionRecording::captureInitialDom'])` and `window._paq.push(['HeatmapSessionRecording::enable'])`
 - `checkMatomoExists()`: Checks if `window._paq` exists on page
 
@@ -259,7 +259,7 @@ tsconfig.json        # TypeScript configuration
 
 **Storage**: Use `storage` from `wxt/utils/storage` with namespaced keys (e.g., `local:matomo:apiUrl`). The storage API is reactive and works across all extension contexts.
 
-**Auto-imports**: WXT auto-imports browser APIs. Use `chrome.*` directly without imports.
+**Browser API**: Use WXT's unified `browser` API imported from `wxt/browser` instead of Chrome-specific `chrome.*` APIs. This provides cross-browser compatibility (Chromium, Firefox, Safari). WXT merges browser-specific globals into a unified promise-based API. Import with `import { browser } from 'wxt/browser';` or rely on auto-imports if enabled.
 
 **Build Output**: Dev builds to `.output/chrome-mv3-dev`, production to `.output/chrome-mv3`. Each browser target has separate output directory.
 
@@ -267,6 +267,6 @@ tsconfig.json        # TypeScript configuration
 
 Defined in `wxt.config.ts:5-10`:
 - `activeTab`: Access current tab only
-- `scripting`: Required for `chrome.scripting.executeScript()` in MAIN world
+- `scripting`: Required for `browser.scripting.executeScript()` in MAIN world
 - `storage`: Persist credentials and state
 - `host_permissions: ['<all_urls>']`: Required for Matomo API calls to user-provided instances
