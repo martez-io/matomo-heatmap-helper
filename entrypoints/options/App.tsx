@@ -213,7 +213,7 @@ export default function App() {
 
         {/* Footer */}
         <p className="text-center text-sm text-gray-500 mt-6">
-          Developed with ❤️ by <a href="https://martez.io" className="text-slate-500 underline" target="_blank">Raphael @ Martez.io</a>
+          Developed with ❤️ by <a href="https://martez.io" className="text-slate-500" target="_blank">Raphael @ Martez.io</a>
         </p>
       </div>
     </div>
