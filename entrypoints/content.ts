@@ -41,7 +41,7 @@ export default defineContentScript({
   runAt: 'document_idle',
 
   main() {
-    console.log('[Matomo Screenshot Helper] Content script loaded');
+    console.log('[Matomo Heatmap Helper] Content script loaded');
 
     // Inject styles immediately so lock indicators work
     injectStyles();
@@ -131,7 +131,7 @@ function handleStartTracking(heatmapId: number) {
     el.addEventListener('scroll', handleScroll, { passive: true });
   });
 
-  console.log('[Matomo Screenshot Helper] Tracking started');
+  console.log('[Matomo Heatmap Helper] Tracking started');
 }
 
 // Stop tracking and clear state
@@ -147,7 +147,7 @@ function handleStopTracking() {
   // Clear tracked elements
   ScrollTracker.scrolledElements.clear();
 
-  console.log('[Matomo Screenshot Helper] Tracking stopped and state cleared');
+  console.log('[Matomo Heatmap Helper] Tracking stopped and state cleared');
 }
 
 // Handle scroll events
@@ -188,7 +188,7 @@ function handleScroll(event: Event) {
 
     ScrollTracker.scrolledElements.set(element, metadata);
 
-    console.log(`[Matomo Screenshot Helper] Detected: ${selector}`);
+    console.log(`[Matomo Heatmap Helper] Detected: ${selector}`);
   }
 }
 
@@ -226,11 +226,11 @@ async function handleExpandElements() {
   });
 
   if (elementsToExpand.size === 0) {
-    console.log('[Matomo Screenshot Helper] No elements to expand - skipping expansion');
+    console.log('[Matomo Heatmap Helper] No elements to expand - skipping expansion');
     return;
   }
 
-  console.log(`[Matomo Screenshot Helper] Expanding ${elementsToExpand.size} elements (${ScrollTracker.scrolledElements.size} scrolled, ${ScrollTracker.lockedElements.size} locked)`);
+  console.log(`[Matomo Heatmap Helper] Expanding ${elementsToExpand.size} elements (${ScrollTracker.scrolledElements.size} scrolled, ${ScrollTracker.lockedElements.size} locked)`);
 
   // Store and expand html/body
   storeOriginalState(document.documentElement);
@@ -266,12 +266,12 @@ async function handleExpandElements() {
   // Wait for rendering
   await sleep(500);
 
-  console.log('[Matomo Screenshot Helper] Elements expanded');
+  console.log('[Matomo Heatmap Helper] Elements expanded');
 }
 
 // Restore layout
 function handleRestore() {
-  console.log('[Matomo Screenshot Helper] Restoring layout');
+  console.log('[Matomo Heatmap Helper] Restoring layout');
 
   // Remove all lock indicators
   document.querySelectorAll('.mhh-locked-element').forEach((el) => {
@@ -294,7 +294,7 @@ function handleRestore() {
   ScrollTracker.originalStates.clear();
   ScrollTracker.isTracking = false;
 
-  console.log('[Matomo Screenshot Helper] Layout restored');
+  console.log('[Matomo Heatmap Helper] Layout restored');
 }
 
 // Helper: Store original state

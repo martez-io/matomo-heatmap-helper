@@ -504,7 +504,10 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <div className="w-[400px] p-5">
         <div className="mb-6 relative">
-          <h1 className="text-xl font-bold text-gray-900">📊 Matomo Screenshot Helper</h1>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <img src="/logo.png" alt="Matomo Logo" className="w-6 h-6" />
+            Matomo Heatmap Helper
+          </h1>
           <p className="text-xs text-gray-600 mt-1">Prepare pages for heatmap screenshots</p>
           <button
             onClick={openSettings}
