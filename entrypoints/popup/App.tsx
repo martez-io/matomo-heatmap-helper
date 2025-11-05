@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Camera, Play, StopCircle, RotateCcw, Settings } from 'lucide-react';
+import { Camera, Play, StopCircle, RotateCcw, Settings, Lock, Check } from 'lucide-react';
 import { useHeatmaps } from '@/hooks/useHeatmaps';
 import { useScrollTracking } from '@/hooks/useScrollTracking';
 import { HeatmapSelector } from '@/components/popup/HeatmapSelector';
@@ -31,6 +31,8 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
   const [error, setError] = useState<string | null>(null);
   const [hasMato, setHasMatomo] = useState(true);
   const [bypassedCheck, setBypassedCheck] = useState(false);
+  const [isInteractiveMode, setIsInteractiveMode] = useState(false);
+  const [lockedCount, setLockedCount] = useState(0);
 
   const [cachedHeatmaps, setCachedHeatmaps] = useState<MatomoHeatmap[]>([]);
   const { data: freshHeatmaps, isLoading: heatmapsLoading, error: heatmapsError, isFetching: heatmapsFetching } = useHeatmaps();
@@ -82,6 +84,25 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
   useEffect(() => {
     initialize();
   }, []);
+
+  // Poll for locked elements count when in interactive mode
+  useEffect(() => {
+    if (!isInteractiveMode) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const tab = await getCurrentTab();
+        const status = await sendToContentScript(tab.id!, { action: 'getLockedElements' });
+        if ('lockedCount' in status) {
+          setLockedCount(status.lockedCount);
+        }
+      } catch (err) {
+        console.error('[Popup] Failed to fetch locked count:', err);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isInteractiveMode]);
 
   async function initialize() {
     try {
@@ -186,6 +207,39 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
       } catch (err) {
         setError('Failed to initialize tracking. Please refresh the page.');
       }
+    }
+  }
+
+  async function handleEnterLockMode() {
+    try {
+      const tab = await getCurrentTab();
+      const response = await sendToContentScript(tab.id!, { action: 'enterInteractiveMode' });
+
+      if ('success' in response && response.success) {
+        setIsInteractiveMode(true);
+        setError(null);
+        window.close(); // Close popup so user can immediately interact with page
+      } else {
+        setError('Failed to enter interactive mode');
+      }
+    } catch (err) {
+      setError('Failed to enter interactive mode');
+    }
+  }
+
+  async function handleExitLockMode() {
+    try {
+      const tab = await getCurrentTab();
+      await sendToContentScript(tab.id!, { action: 'exitInteractiveMode' });
+      setIsInteractiveMode(false);
+
+      // Fetch locked count
+      const status = await sendToContentScript(tab.id!, { action: 'getLockedElements' });
+      if ('lockedCount' in status) {
+        setLockedCount(status.lockedCount);
+      }
+    } catch (err) {
+      setError('Failed to exit interactive mode');
     }
   }
 
@@ -361,6 +415,35 @@ function PopupContent({ onOpenSettings }: PopupContentProps) {
           count={trackingStatus.scrolledCount}
           scrollables={trackingStatus.scrollables}
         />
+
+        {/* Interactive Height Locking */}
+        {!isInteractiveMode && (
+          <Button onClick={handleEnterLockMode} variant="secondary" fullWidth>
+            <Lock className="mr-2 h-4 w-4" />
+            Lock dynamic elements
+          </Button>
+        )}
+
+        {isInteractiveMode && (
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Lock className="w-5 h-5 text-amber-600" />
+              <h3 className="font-semibold text-amber-900">Interactive Mode Active</h3>
+            </div>
+            <p className="text-sm text-amber-800 mb-3">
+              Click elements on the page to lock their heights. Locked elements will be expanded during screenshot.
+            </p>
+            <div className="flex items-center justify-between text-sm text-amber-900 mb-3">
+              <span className="font-medium">Locked elements:</span>
+              <span className="font-bold">{lockedCount}</span>
+            </div>
+            <Button onClick={handleExitLockMode} variant="secondary" fullWidth>
+              <Check className="mr-2 h-4 w-4" />
+              Done Locking
+            </Button>
+          </div>
+        )}
+
         {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
         <Button onClick={handleTakeScreenshot} fullWidth>
           <Camera className="mr-2 h-4 w-4" />

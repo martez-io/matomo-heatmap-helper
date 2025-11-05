@@ -26,7 +26,7 @@ export function ScrollTracker({ count, scrollables }: ScrollTrackerProps) {
         <div className="space-y-2">
           <div className="flex items-start gap-2 text-sm text-blue-900">
             <CheckboxIcon className="text-blue-500 w-5 h-5 flex-shrink-0" />
-            <span>Scroll to the bottom to trigger lazy-loaded content</span>
+            <span>Scroll to trigger lazy-loaded content</span>
           </div>
           <div className="flex items-start gap-2 text-sm text-blue-900">
             <CheckboxIcon className="text-blue-500 w-5 h-5 flex-shrink-0" />
@@ -43,6 +43,10 @@ export function ScrollTracker({ count, scrollables }: ScrollTrackerProps) {
           <div className="flex items-start gap-2 text-sm text-blue-900">
             <CheckboxIcon className="text-blue-500 w-5 h-5 flex-shrink-0" />
             <span>Ensure dynamic content has fully rendered</span>
+          </div>
+          <div className="flex items-start gap-2 text-sm text-blue-900">
+            <CheckboxIcon className="text-blue-500 w-5 h-5 flex-shrink-0" />
+            <span>Lock elements with dynamic height</span>
           </div>
         </div>
       </div>

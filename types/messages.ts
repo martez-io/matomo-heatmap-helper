@@ -15,6 +15,18 @@ export interface ScrollTrackerStatus {
   isTracking: boolean;
 }
 
+export interface LockedElement {
+  selector: string;
+  scrollHeight: number;
+  clientHeight: number;
+  isScrollable: boolean;
+}
+
+export interface LockedElementsStatus {
+  lockedCount: number;
+  lockedElements: LockedElement[];
+}
+
 // Content script messages
 export type ContentScriptMessage =
   | { action: 'startTracking'; heatmapId: number }
@@ -23,12 +35,16 @@ export type ContentScriptMessage =
   | { action: 'expandElements' }
   | { action: 'restore' }
   | { action: 'showScanner' }
-  | { action: 'showBorderGlow' };
+  | { action: 'showBorderGlow' }
+  | { action: 'enterInteractiveMode' }
+  | { action: 'exitInteractiveMode' }
+  | { action: 'getLockedElements' };
 
 export type ContentScriptResponse =
   | { success: true }
   | { success: false; error: string }
-  | ScrollTrackerStatus;
+  | ScrollTrackerStatus
+  | LockedElementsStatus;
 
 // Background worker messages
 export type BackgroundMessage = {
