@@ -73,11 +73,34 @@ export async function resolveSiteForCurrentTab(): Promise<ResolutionResult> {
 
   try {
     // Step 1: Get site IDs that match this domain
-    console.log('[SiteResolver] Calling getSitesIdFromSiteUrl for:', domain);
-    const matchingSiteIds = await client.getSitesIdFromSiteUrl(currentTab.url);
+    // Try multiple URL format variations to find a match
+    const urlObj = new URL(currentTab.url);
+    const urlVariations = [
+      { label: 'Full URL', value: currentTab.url },
+      { label: 'Base URL (protocol + domain)', value: `${urlObj.protocol}//${urlObj.hostname}` },
+      { label: 'Domain only', value: domain },
+      { label: 'HTTPS base URL', value: `https://${urlObj.hostname}` },
+      { label: 'HTTP base URL', value: `http://${urlObj.hostname}` },
+    ];
+
+    console.log('[SiteResolver] Trying multiple URL format variations...');
+    let matchingSiteIds: number[] = [];
+
+    for (const variation of urlVariations) {
+      console.log(`[SiteResolver] Trying ${variation.label}: ${variation.value}`);
+      const result = await client.getSitesIdFromSiteUrl(variation.value);
+
+      if (result && result.length > 0) {
+        console.log(`[SiteResolver] ✓ SUCCESS! Found matching site IDs with ${variation.label}:`, result);
+        matchingSiteIds = result;
+        break;
+      } else {
+        console.log(`[SiteResolver] ✗ No match with ${variation.label}`);
+      }
+    }
 
     if (!matchingSiteIds || matchingSiteIds.length === 0) {
-      console.log('[SiteResolver] No sites match this domain');
+      console.log('[SiteResolver] ✗ No sites match this domain with any URL format variation');
       return { success: false, error: 'no-site' };
     }
 
