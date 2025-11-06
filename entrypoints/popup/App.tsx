@@ -636,7 +636,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="w-[400px] p-5">
+      <div className="w-[450px] p-5">
         <div className="mb-6 relative">
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <img src="/logo.png" alt="Matomo Logo" className="w-6 h-6" />
