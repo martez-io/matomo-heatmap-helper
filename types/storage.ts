@@ -4,6 +4,22 @@
 
 import type { MatomoHeatmap, MatomoSite } from './matomo';
 
+export type ProcessingStep = 'validating' | 'expanding' | 'capturing' | 'verifying' | 'complete';
+
+export interface ScreenshotProgress {
+  heatmapId: number;
+  tabId: number;
+  siteId: number;
+  step: ProcessingStep;
+  startTime: number;
+}
+
+export interface LockedElementData {
+  selector: string;
+  scrollHeight: number;
+  clientHeight: number;
+}
+
 export interface DomainSiteMapping {
   siteId: number;
   siteName: string;
@@ -32,6 +48,15 @@ export interface StorageSchema {
     heatmaps: MatomoHeatmap[];
     timestamp: number;
   }>;
+
+  // Extension state
+  'state:isInteractiveMode': boolean;
+  'state:isProcessing': boolean;
+  'state:processingStep': ProcessingStep | null;
+  'state:screenshotInProgress': ScreenshotProgress | null;
+  'state:lockedElements': LockedElementData[];
+  'state:activeTabId': number | null;
+  'state:barVisible': boolean;
 }
 
 export const CACHE_TTL = 5 * 60 * 1000; // 5 minutes

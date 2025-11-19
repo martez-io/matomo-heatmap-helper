@@ -13,6 +13,8 @@ export interface ScrollTrackerStatus {
   scrolledCount: number;
   scrollables: ScrollableElement[];
   isTracking: boolean;
+  isInteractiveMode: boolean;
+  lockedCount: number;
 }
 
 export interface LockedElement {
@@ -48,11 +50,10 @@ export type ContentScriptResponse =
   | LockedElementsStatus;
 
 // Background worker messages
-export type BackgroundMessage = {
-  action: 'onSuccessfulScreenshot';
-  url: string;
-  tabId: number;
-};
+export type BackgroundMessage =
+  | { action: 'onSuccessfulScreenshot'; url: string; tabId: number }
+  | { action: 'executeScreenshot'; heatmapId: number; tabId: number; siteId: number }
+  | { action: 'cancelScreenshot'; tabId: number };
 
 export type BackgroundResponse = {
   success: boolean;

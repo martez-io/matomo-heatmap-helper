@@ -1,5 +1,7 @@
 import { browser } from 'wxt/browser';
+import { setStorage } from '@/lib/storage';
 import type { ContentScriptMessage, ContentScriptResponse, ScrollTrackerStatus } from '@/types/messages';
+import type { LockedElementData } from '@/types/storage';
 
 // Global state
 const ScrollTracker = {
@@ -210,7 +212,21 @@ function getStatus(): ScrollTrackerStatus {
     scrolledCount: ScrollTracker.scrolledElements.size,
     scrollables,
     isTracking: ScrollTracker.isTracking,
+    isInteractiveMode: ScrollTracker.isInteractiveMode,
+    lockedCount: ScrollTracker.lockedElements.size,
   };
+}
+
+// Sync state to storage
+async function syncStateToStorage() {
+  await setStorage('state:isInteractiveMode', ScrollTracker.isInteractiveMode);
+
+  const lockedElements: LockedElementData[] = Array.from(ScrollTracker.lockedElements.values()).map(meta => ({
+    selector: meta.selector,
+    scrollHeight: meta.scrollHeight,
+    clientHeight: meta.clientHeight,
+  }));
+  await setStorage('state:lockedElements', lockedElements);
 }
 
 // Expand elements
@@ -389,6 +405,7 @@ function handleEnterInteractiveMode() {
   }
 
   ScrollTracker.isInteractiveMode = true;
+  syncStateToStorage(); // Sync to storage
 
   // Create instructions banner
   const banner = document.createElement('div');
@@ -471,6 +488,7 @@ function handleExitInteractiveMode() {
   if (!ScrollTracker.isInteractiveMode) return;
 
   ScrollTracker.isInteractiveMode = false;
+  syncStateToStorage(); // Sync to storage
 
   // Remove banner
   if (ScrollTracker.interactiveOverlay) {
@@ -615,6 +633,9 @@ function handleInteractiveClick(event: MouseEvent) {
     // Lock
     lockElement(element);
   }
+
+  // Sync state to storage
+  syncStateToStorage();
 
   // Trigger hover event to update visual feedback
   handleInteractiveHover(event);
