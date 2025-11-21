@@ -52,13 +52,20 @@ export type ContentScriptResponse =
 // Background worker messages
 export type BackgroundMessage =
   | { action: 'onSuccessfulScreenshot'; url: string; tabId: number }
-  | { action: 'executeScreenshot'; heatmapId: number; tabId: number; siteId: number }
-  | { action: 'cancelScreenshot'; tabId: number };
+  | { action: 'executeScreenshot'; heatmapId: number; tabId?: number; siteId: number }
+  | { action: 'cancelScreenshot'; tabId?: number }
+  | { action: 'fetchHeatmaps'; siteId: number; forceRefresh?: boolean }
+  | { action: 'resolveSite'; url: string }
+  | { action: 'openSettings' }
+  | { action: 'openBugReport' };
 
 export type BackgroundResponse = {
   success: boolean;
   tabId?: number;
   error?: string;
+  // Site resolution fields
+  siteId?: number;
+  siteName?: string;
 };
 
 // Page context messages (for Matomo API calls)

@@ -12,6 +12,7 @@ export interface ScreenshotProgress {
   siteId: number;
   step: ProcessingStep;
   startTime: number;
+  error?: string; // Optional error message
 }
 
 export interface LockedElementData {
@@ -30,6 +31,8 @@ export interface StorageSchema {
   // Matomo credentials
   'matomo:apiUrl': string;
   'matomo:authToken': string;
+  'matomo:siteId': number | null;
+  'matomo:siteName': string | null;
 
   // Domain to site mappings (cached with TTL)
   'matomo:domainSiteMap': Record<string, DomainSiteMapping>;
@@ -57,6 +60,17 @@ export interface StorageSchema {
   'state:lockedElements': LockedElementData[];
   'state:activeTabId': number | null;
   'state:barVisible': boolean;
+  'state:barMinimized': boolean;
+
+  // Debug
+  'debug:errorLog': Array<{
+    type: string;
+    message: string;
+    step: ProcessingStep;
+    recoverable: boolean;
+    context: any;
+    timestamp: number;
+  }>;
 }
 
 export const CACHE_TTL = 5 * 60 * 1000; // 5 minutes

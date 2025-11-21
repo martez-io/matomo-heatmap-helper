@@ -15,4 +15,11 @@ export default defineConfig({
       128: '/icons/icon128.png',
     },
   },
+  vite: () => ({
+    optimizeDeps: {
+      // Wait for HTML crawling to complete before scanning dependencies
+      // This prevents race condition where Vite tries to scan dist files before WXT generates them
+      holdUntilCrawlEnd: true,
+    },
+  }),
 });

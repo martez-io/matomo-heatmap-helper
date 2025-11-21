@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@theme {
+  /* Custom primary colors (amber) */
+  --color-primary-50: var(--color-amber-50);
+  --color-primary-100: var(--color-amber-200);
+  --color-primary-200: var(--color-amber-200);
+  --color-primary-300: var(--color-amber-300);
+  --color-primary-400: var(--color-amber-400);
+  --color-primary-500: var(--color-amber-500);
+  --color-primary-600: var(--color-amber-600);
+  --color-primary-700: var(--color-amber-700);
+  --color-primary-800: var(--color-amber-800);
+  --color-primary-900: var(--color-amber-900);
+
+  /* Custom success colors (green) */
+  --color-success-50: oklch(98.2% .018 155.826);
+  --color-success-100: oklch(95.8% .046 155.975);
+  --color-success-200: oklch(92.5% .084 155.995);
+  --color-success-300: oklch(86.5% .139 154.822);
+  --color-success-400: oklch(77.1% .178 151.767);
+  --color-success-500: oklch(67% .184 149.579);
+  --color-success-600: oklch(59.3% .172 149.214);
+  --color-success-700: oklch(51.8% .145 149.571);
+  --color-success-800: oklch(44.8% .119 151.328);
+  --color-success-900: oklch(39.1% .098 152.566);
+
+  /* shadcn/ui colors mapped to Tailwind v4 OKLCH format */
+  --color-background: oklch(100% 0 0);
+  --color-foreground: oklch(9% 0 0);
+
+  --color-card: oklch(100% 0 0);
+  --color-card-foreground: oklch(9% 0 0);
+
+  --color-popover: oklch(100% 0 0);
+  --color-popover-foreground: oklch(9% 0 0);
+
+  /* Map primary to amber-600 for buttons */
+  --color-primary: var(--color-amber-600);
+  --color-primary-foreground: oklch(98% 0 0);
+
+  --color-secondary: oklch(96% 0 0);
+  --color-secondary-foreground: oklch(9% 0 0);
+
+  --color-muted: oklch(96% 0 0);
+  --color-muted-foreground: oklch(45% 0 0);
+
+  --color-accent: oklch(96% 0 0);
+  --color-accent-foreground: oklch(9% 0 0);
+
+  /* Map destructive to red */
+  --color-destructive: var(--color-red-600);
+  --color-destructive-foreground: oklch(98% 0 0);
+
+  --color-border: oklch(90% 0 0);
+  --color-input: oklch(90% 0 0);
+  --color-ring: oklch(9% 0 0);
+
+  --radius: 0.5rem;
+}
+
+body {
+  @apply bg-white text-gray-900;
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded hover:bg-gray-500;
+  }
+
+  .animate-wiggle {
+    animation: wiggle 0.8s ease-in-out infinite;
+  }
+
+  @keyframes wiggle {
+    0%, 100% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(-3deg);
+    }
+    75% {
+      transform: rotate(3deg);
+    }
+  }
+
+  @keyframes fillCircle {
+    from {
+        stroke-dashoffset: 62.83;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+}

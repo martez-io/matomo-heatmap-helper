@@ -1,28 +1,172 @@
 import { browser } from 'wxt/browser';
+import { ScreenshotStateMachine } from './background/ScreenshotStateMachine';
+import { getStorage, getCredentials, setStorage } from '@/lib/storage';
+import { createMatomoClient } from '@/lib/matomo-api';
+import { resolveSiteForUrl } from '@/lib/site-resolver';
+import { generateBugReportUrl } from '@/lib/github-issue';
 import type { BackgroundMessage, BackgroundResponse } from '@/types/messages';
+
+let screenshotMachine: ScreenshotStateMachine;
 
 export default defineBackground({
   main() {
     console.log('[Background] Service worker initialized');
 
-    browser.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
+    // Initialize state machine
+    screenshotMachine = new ScreenshotStateMachine();
+
+    // Handle messages from popup/bar
+    browser.runtime.onMessage.addListener((message: BackgroundMessage, sender, sendResponse) => {
       console.log('[Background] Received message:', message);
 
-      if (message.action === 'onSuccessfulScreenshot') {
-        handleSuccessfulScreenshot(message.tabId, message.url)
-          .then((result) => sendResponse(result))
-          .catch((error) => sendResponse({ success: false, error: error.message }));
+      handleMessage(message, sender)
+        .then((result) => sendResponse(result))
+        .catch((error) => sendResponse({ success: false, error: error.message }));
 
-        return true; // Async response
+      return true; // Async response
+    });
+
+    // Handle tab updates (detect navigation during screenshot)
+    browser.tabs.onUpdated.addListener(async (tabId, changeInfo, _tab) => {
+      if (changeInfo.status === 'loading') {
+        const progress = await getStorage('state:screenshotInProgress');
+        if (progress && progress.tabId === tabId) {
+          console.warn('[Background] Page navigation during screenshot, cancelling');
+          await screenshotMachine.cancel();
+        }
       }
+    });
 
-      return false;
+    // Handle tab removal
+    browser.tabs.onRemoved.addListener(async (tabId) => {
+      const progress = await getStorage('state:screenshotInProgress');
+      if (progress && progress.tabId === tabId) {
+        console.warn('[Background] Tab closed during screenshot, cancelling');
+        await screenshotMachine.cancel();
+      }
     });
   },
 });
 
+async function handleMessage(
+  message: BackgroundMessage,
+  sender?: browser.Runtime.MessageSender
+): Promise<BackgroundResponse> {
+  switch (message.action) {
+    case 'executeScreenshot':
+      // Extract tabId from sender (for content script calls) or use provided tabId
+      const tabId = sender?.tab?.id ?? message.tabId;
+
+      if (!tabId) {
+        return { success: false, error: 'No tab ID available' };
+      }
+
+      await screenshotMachine.start({
+        heatmapId: message.heatmapId,
+        tabId: tabId,
+        siteId: message.siteId,
+      });
+      return { success: true };
+
+    case 'cancelScreenshot':
+      await screenshotMachine.cancel();
+      return { success: true };
+
+    case 'fetchHeatmaps':
+      return await fetchHeatmaps(message.siteId, message.forceRefresh);
+
+    case 'resolveSite':
+      return await resolveSite(message.url);
+
+    case 'onSuccessfulScreenshot':
+      // Legacy handler - may still be called by old popup during migration
+      return await handleSuccessfulScreenshot(message.tabId, message.url);
+
+    case 'openSettings':
+      return await handleOpenSettings();
+
+    case 'openBugReport':
+      return await handleOpenBugReport();
+
+    default:
+      return { success: false, error: 'Unknown action' };
+  }
+}
+
+async function fetchHeatmaps(siteId: number, forceRefresh?: boolean): Promise<BackgroundResponse> {
+  try {
+    const creds = await getCredentials();
+    if (!creds) {
+      throw new Error('No credentials configured');
+    }
+
+    // Check cache unless force refresh
+    if (!forceRefresh) {
+      const cache = await getStorage('cache:heatmaps');
+      if (cache && cache[siteId]) {
+        const isFresh = Date.now() - cache[siteId].timestamp < 5 * 60 * 1000;
+        if (isFresh) {
+          console.log('[Background] Using cached heatmaps for site', siteId);
+          return { success: true };
+        }
+      }
+    }
+
+    // Fetch from API
+    console.log('[Background] Fetching heatmaps from API for site', siteId);
+    const client = createMatomoClient(creds.apiUrl, creds.authToken);
+    const heatmaps = await client.getHeatmaps(siteId);
+
+    // Update cache
+    const existingCache = (await getStorage('cache:heatmaps')) || {};
+    await setStorage('cache:heatmaps', {
+      ...existingCache,
+      [siteId]: {
+        heatmaps,
+        timestamp: Date.now(),
+      },
+    });
+
+    console.log('[Background] Heatmaps cached:', heatmaps.length);
+    return { success: true };
+  } catch (error) {
+    console.error('[Background] Failed to fetch heatmaps:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+async function resolveSite(url: string): Promise<BackgroundResponse> {
+  try {
+    console.log('[Background] Resolving site for URL:', url);
+    const result = await resolveSiteForUrl(url);
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+      };
+    }
+
+    return {
+      success: true,
+      siteId: result.siteId,
+      siteName: result.siteName,
+    };
+  } catch (error) {
+    console.error('[Background] Failed to resolve site:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// Legacy handler for backward compatibility
 async function handleSuccessfulScreenshot(tabId: number, url: string): Promise<BackgroundResponse> {
-  console.log('[Background] Handling successful screenshot');
+  console.log('[Background] Handling successful screenshot (legacy)');
 
   try {
     // Send message to content script to show border glow
@@ -39,6 +183,47 @@ async function handleSuccessfulScreenshot(tabId: number, url: string): Promise<B
     return { success: true, tabId: tab.id };
   } catch (error) {
     console.error('[Background] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+async function handleOpenSettings(): Promise<BackgroundResponse> {
+  try {
+    console.log('[Background] Opening settings page');
+
+    // Get the options page URL - WXT generates it as chrome-extension://[ID]/options.html
+    const optionsUrl = browser.runtime.getURL('options.html');
+
+    const tab = await browser.tabs.create({ url: optionsUrl, active: true });
+
+    console.log('[Background] Settings tab created:', tab.id);
+    return { success: true, tabId: tab.id };
+  } catch (error) {
+    console.error('[Background] Failed to open settings:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+async function handleOpenBugReport(): Promise<BackgroundResponse> {
+  try {
+    console.log('[Background] Opening bug report');
+
+    // Generate bug report URL with browser/environment details
+    // Assume Matomo is detected since persistent bar only shows on Matomo pages
+    const bugReportUrl = await generateBugReportUrl({ matomoDetected: true });
+
+    const tab = await browser.tabs.create({ url: bugReportUrl, active: true });
+
+    console.log('[Background] Bug report tab created:', tab.id);
+    return { success: true, tabId: tab.id };
+  } catch (error) {
+    console.error('[Background] Failed to open bug report:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
