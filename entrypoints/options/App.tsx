@@ -1,5 +1,12 @@
+/**
+ * Options page for configuring Matomo API credentials.
+ *
+ * Security note: Credentials are stored in chrome.storage.local, which is isolated
+ * by the browser and inaccessible to web pages. Only this extension can read them.
+ */
+
 import { useState, useEffect } from 'react';
-import { Settings, Trash2 } from 'lucide-react';
+import { Settings, Trash2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { createMatomoClient } from '@/lib/matomo-api';
 import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites } from '@/lib/storage';
@@ -164,6 +171,14 @@ export default function App() {
                             />
                         </CardContent>
                     </Card>
+
+                    {/* Security note */}
+                    <div className="flex items-start gap-3 mt-6 p-4 rounded-lg bg-muted/50 border border-border/40">
+                        <ShieldCheck className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                        <p className="text-sm text-muted-foreground">
+                            Your credentials are stored securely in the browser's extension storage and cannot be accessed by websites you visit.
+                        </p>
+                    </div>
 
                     {/* Footer */}
                     <p className="text-center text-sm text-muted-foreground mt-8">
