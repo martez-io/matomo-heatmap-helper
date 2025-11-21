@@ -34,9 +34,9 @@ Built with [WXT](https://wxt.dev/) (Next-gen Web Extension Framework) + React + 
 - Uses `ScreenshotStateMachine` for orchestrating the screenshot workflow
 - Handles tab lifecycle events (navigation, closure during screenshots)
 
-**Content Script** (`entrypoints/content.ts`)
-- Core page manipulation: scroll tracking, element expansion, layout restoration
-- `ScrollTracker` state machine tracks scrolled/locked elements
+**Content Script** (`entrypoints/content/`)
+- Modular structure: `index.ts` (entry), `state.ts`, `scroll-tracking.ts`, `expansion.ts`, `interactive-mode.ts`, `animations.ts`, `dom-utils.ts`, `events.ts`
+- `ScrollTracker` global state tracks scrolled/locked elements
 - Communicates via both Chrome messaging API and CustomEvents (for Shadow DOM bar)
 
 **Persistent Bar** (`entrypoints/persistentBar.content/`)
@@ -79,6 +79,7 @@ Built with [WXT](https://wxt.dev/) (Next-gen Web Extension Framework) + React + 
 
 - Uses shadcn/ui components (`components/ui/`)
 - Custom icons in `components/icons/`
+- Shared styles in `assets/style.css`
 - Tailwind v4 with `@tailwindcss/postcss` + `postcss-rem-to-px` for consistent sizing
 
 ## Key Workflows
