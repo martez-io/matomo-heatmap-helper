@@ -50,7 +50,7 @@ export function App() {
             aria-label="Matomo Heatmap Helper Controls"
         >
             {/* Main bar content */}
-            <Card className="bg-white rounded-t-xl shadow-2xl border-amber-500 rounded-b-none min-w-[min(90vw,600px)] max-w-[min(95vw,630px)]">
+            <Card className="bg-background rounded-t-xl shadow-2xl border-primary border-2 rounded-b-none border-b-0 min-w-[min(90vw,600px)] max-w-[min(95vw,630px)]">
                 {/* Hide header during processing */}
                 {!(state.isProcessing && state.processingStep) && (
                     <CardHeader className="pt-3 pb-6 px-3">

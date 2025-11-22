@@ -1,0 +1,116 @@
+@import "../../assets/style.css";
+
+/**
+ * Feedback Bar Styles
+ * Tailwind CSS for Shadow DOM with animations
+ */
+
+@layer base {
+  /* Reset for Shadow DOM to prevent inheritance */
+  :host {
+    all: initial;
+    display: block;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #111827; /* gray-900 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    zoom: 1;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Font stack */
+  * {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  /* Box sizing */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* Remove default margins/padding */
+  * {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Focus visible styles */
+  *:focus-visible {
+    outline: 2px solid #f97316; /* orange-500 */
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Button base styles */
+  button {
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    background: none;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+@layer utilities {
+  /* Fade in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 200ms ease-out forwards;
+  }
+
+  /* Slide up animation for negative feedback */
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slideUp {
+    animation: slideUp 300ms ease-out forwards;
+  }
+
+  /* Slide in from bottom for initial bar */
+  @keyframes slideInFromBottom {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slideInFromBottom {
+    animation: slideInFromBottom 400ms ease-out forwards;
+  }
+
+  /* Exit animation class */
+  .animate-exit {
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+  }
+}

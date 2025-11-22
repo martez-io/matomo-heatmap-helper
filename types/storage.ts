@@ -74,6 +74,11 @@ export interface StorageSchema {
 
   // Settings
   'settings:debugMode': boolean;
+
+  // Feedback tracking
+  'feedback:promptCount': number;           // Times review prompt shown (max 3)
+  'feedback:reviewClicked': boolean;        // User clicked review link
+  'feedback:lastProcessedTs': number;       // Dedup param processing
 }
 
 export const CACHE_TTL = 5 * 60 * 1000; // 5 minutes

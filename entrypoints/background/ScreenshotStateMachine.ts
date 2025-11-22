@@ -286,12 +286,18 @@ export class ScreenshotStateMachine {
         );
 
         if (heatmap.heatmapViewUrl) {
-          const url = `${creds.apiUrl}/${heatmap.heatmapViewUrl}`.replace(
+          const baseUrl = `${creds.apiUrl}/${heatmap.heatmapViewUrl}`.replace(
             '&token_auth=' + creds.authToken,
             ''
           );
 
-          await browser.tabs.create({ url, active: true });
+          // Build URL with success params for feedback bar
+          const successUrl = new URL(baseUrl);
+          successUrl.searchParams.set('mhh_success', '1');
+          successUrl.searchParams.set('mhh_heatmap', String(this.context.heatmapId));
+          successUrl.searchParams.set('mhh_ts', String(Date.now()));
+
+          await browser.tabs.create({ url: successUrl.toString(), active: true });
         }
       } catch (err) {
         logger.error('StateMachine', 'Failed to open heatmap tab:', err);

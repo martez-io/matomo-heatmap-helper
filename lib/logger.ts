@@ -37,13 +37,23 @@ export const logger: Logger = {
     if (this._initialized) return;
 
     // Load current debug mode setting
-    const debugMode = await storage.getItem<boolean>('local:settings:debugMode');
-    this._debugEnabled = debugMode ?? false;
+    try {
+      const debugMode = await storage.getItem<boolean>('local:settings:debugMode');
+      this._debugEnabled = debugMode ?? false;
+    } catch {
+      // Storage access failed - keep default (disabled)
+    }
 
     // Watch for changes to debug mode
-    this._unwatch = storage.watch<boolean>('local:settings:debugMode', (newValue) => {
-      this._debugEnabled = newValue ?? false;
-    });
+    // Wrapped in try-catch because storage.watch() may use a worker
+    // which can fail on pages with strict CSP (Content Security Policy)
+    try {
+      this._unwatch = storage.watch<boolean>('local:settings:debugMode', (newValue) => {
+        this._debugEnabled = newValue ?? false;
+      });
+    } catch {
+      // Watcher failed (likely CSP) - logger still works, just won't update live
+    }
 
     this._initialized = true;
   },

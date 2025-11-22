@@ -18,39 +18,65 @@ export interface BrowserInfo {
 }
 
 /**
- * Detect browser information from user agent string
+ * Get browser name from WXT build-time environment
  */
-export function getBrowserInfo(): BrowserInfo {
+function getBrowserName(): string {
+  if (import.meta.env.FIREFOX) return 'Firefox';
+  if (import.meta.env.EDGE) return 'Edge';
+  if (import.meta.env.SAFARI) return 'Safari';
+  if (import.meta.env.OPERA) return 'Opera';
+  if (import.meta.env.CHROME) return 'Chrome';
+  // Fallback to the BROWSER env var or 'Unknown'
+  return import.meta.env.BROWSER || 'Unknown';
+}
+
+/**
+ * Get browser engine from WXT build-time environment
+ */
+function getBrowserEngine(): string {
+  if (import.meta.env.FIREFOX) return 'Gecko';
+  if (import.meta.env.SAFARI) return 'WebKit';
+  // Chrome, Edge, Opera all use Chromium
+  return 'Chromium';
+}
+
+/**
+ * Extract browser version from user agent (version still needs UA parsing)
+ */
+function getBrowserVersion(): string {
   const ua = navigator.userAgent;
 
-  let name = 'Unknown';
-  let version = 'Unknown';
-  let engine = 'Unknown';
-
-  // Detect browser engine and name
-  if (ua.includes('Firefox/')) {
-    name = 'Firefox';
-    engine = 'Gecko';
+  if (import.meta.env.FIREFOX) {
     const match = ua.match(/Firefox\/(\d+\.\d+)/);
-    if (match) version = match[1];
-  } else if (ua.includes('Edg/')) {
-    name = 'Edge';
-    engine = 'Chromium';
-    const match = ua.match(/Edg\/(\d+\.\d+)/);
-    if (match) version = match[1];
-  } else if (ua.includes('Chrome/')) {
-    name = 'Chrome';
-    engine = 'Chromium';
-    const match = ua.match(/Chrome\/(\d+\.\d+)/);
-    if (match) version = match[1];
-  } else if (ua.includes('Safari/') && !ua.includes('Chrome')) {
-    name = 'Safari';
-    engine = 'WebKit';
-    const match = ua.match(/Version\/(\d+\.\d+)/);
-    if (match) version = match[1];
+    return match?.[1] ?? 'Unknown';
   }
+  if (import.meta.env.EDGE) {
+    const match = ua.match(/Edg\/(\d+\.\d+)/);
+    return match?.[1] ?? 'Unknown';
+  }
+  if (import.meta.env.SAFARI) {
+    const match = ua.match(/Version\/(\d+\.\d+)/);
+    return match?.[1] ?? 'Unknown';
+  }
+  if (import.meta.env.OPERA) {
+    const match = ua.match(/OPR\/(\d+\.\d+)/);
+    return match?.[1] ?? 'Unknown';
+  }
+  // Chrome or other Chromium-based
+  const match = ua.match(/Chrome\/(\d+\.\d+)/);
+  return match?.[1] ?? 'Unknown';
+}
 
-  return { name, version, engine };
+/**
+ * Detect browser information using WXT environment variables
+ * Browser name/engine from build-time, version from UA
+ */
+export function getBrowserInfo(): BrowserInfo {
+  return {
+    name: getBrowserName(),
+    version: getBrowserVersion(),
+    engine: getBrowserEngine(),
+  };
 }
 
 /**

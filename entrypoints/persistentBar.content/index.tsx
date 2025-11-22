@@ -3,6 +3,7 @@
  * Creates Shadow DOM UI using WXT's createShadowRootUi
  */
 
+import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import ReactDOM from 'react-dom/client';
 import { storage } from 'wxt/utils/storage';
 import { browser } from 'wxt/browser';
