@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { getCurrentTab } from './messaging';
+import { logger } from './logger';
 
 export interface BugReportContext {
   errorMessage?: string;
@@ -67,7 +68,7 @@ export async function generateBugReportUrl(
     const tab = await getCurrentTab();
     currentUrl = tab.url || 'N/A';
   } catch (error) {
-    console.warn('Could not get current tab URL:', error);
+    logger.warn('GithubIssue', 'Could not get current tab URL:', error);
   }
 
   // Build the issue body

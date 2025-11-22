@@ -7,6 +7,7 @@ import ReactDOM from 'react-dom/client';
 import { storage } from 'wxt/utils/storage';
 import { browser } from 'wxt/browser';
 import { getCredentials } from '@/lib/storage';
+import { logger } from '@/lib/logger';
 import { App } from './components/App';
 import './styles.css';
 
@@ -15,36 +16,37 @@ export default defineContentScript({
   cssInjectionMode: 'ui',
 
   async main(ctx: ContentScriptContext) {
-    console.log('[PersistentBar React] Initializing...');
+    await logger.init();
+    logger.debug('PersistentBar', 'Initializing...');
 
     // Step 1: Check credentials
     const credentials = await getCredentials();
     if (!credentials) {
-      console.log('[PersistentBar React] ❌ No credentials configured - bar will not show');
+      logger.debug('PersistentBar', 'No credentials configured - bar will not show');
       return;
     }
-    console.log('[PersistentBar React] ✅ Credentials found');
+    logger.debug('PersistentBar', 'Credentials found');
 
     // Step 1.5: Check if bar is enabled via toggle
     const barVisible = await storage.getItem('local:state:barVisible');
-    console.log('[PersistentBar React] 📍 Bar visibility setting:', barVisible);
+    logger.debug('PersistentBar', 'Bar visibility setting:', barVisible);
 
     if (barVisible === false) {
-      console.log('[PersistentBar React] ❌ Bar manually disabled by user');
+      logger.debug('PersistentBar', 'Bar manually disabled by user');
       return;
     }
-    console.log('[PersistentBar React] ✅ Bar toggle check passed');
+    logger.debug('PersistentBar', 'Bar toggle check passed');
 
     // Step 2: Resolve site for current page
     try {
-      console.log('[PersistentBar React] 🔍 Resolving site for current page...');
+      logger.debug('PersistentBar', 'Resolving site for current page...');
       const response = await browser.runtime.sendMessage({
         action: 'resolveSite',
         url: window.location.href,
       });
 
       if (!response.success) {
-        console.log('[PersistentBar React] ❌ Could not resolve site:', response.error);
+        logger.debug('PersistentBar', 'Could not resolve site:', response.error);
         return;
       }
 
@@ -52,37 +54,37 @@ export default defineContentScript({
       await storage.setItem('local:persistentBar:siteId', response.siteId);
       await storage.setItem('local:persistentBar:siteName', response.siteName);
 
-      console.log('[PersistentBar React] ✅ Site resolved:', {
+      logger.debug('PersistentBar', 'Site resolved:', {
         siteId: response.siteId,
         siteName: response.siteName,
       });
 
       // Step 3.5: Trigger heatmap fetch for this site
-      console.log('[PersistentBar React] 📋 Fetching heatmaps for site...');
+      logger.debug('PersistentBar', 'Fetching heatmaps for site...');
       try {
         await browser.runtime.sendMessage({
           action: 'fetchHeatmaps',
           siteId: response.siteId,
           forceRefresh: false, // Use cache if available
         });
-        console.log('[PersistentBar React] ✅ Heatmaps fetch triggered');
+        logger.debug('PersistentBar', 'Heatmaps fetch triggered');
       } catch (fetchError) {
-        console.warn('[PersistentBar React] ⚠️ Failed to fetch heatmaps (will retry later):', fetchError);
+        logger.warn('PersistentBar', 'Failed to fetch heatmaps (will retry later):', fetchError);
         // Don't return - bar can still function without heatmaps loaded yet
       }
     } catch (error) {
-      console.error('[PersistentBar React] ❌ Failed to resolve site:', error);
+      logger.error('PersistentBar', 'Failed to resolve site:', error);
       return;
     }
 
     // Step 4: Mount the React UI
-    console.log('[PersistentBar React] 🚀 Mounting UI...');
+    logger.debug('PersistentBar', 'Mounting UI...');
     const ui = await createShadowRootUi(ctx, {
       name: 'matomo-heatmap-helper-bar',
       position: 'inline',
       append: 'last',
       onMount: (container) => {
-        console.log('[PersistentBar React] Mounting UI...');
+        logger.debug('PersistentBar', 'onMount callback triggered');
 
         // Create root element for React
         const app = document.createElement('div');
@@ -93,12 +95,12 @@ export default defineContentScript({
         const root = ReactDOM.createRoot(app);
         root.render(<App />);
 
-        console.log('[PersistentBar React] UI mounted successfully');
+        logger.debug('PersistentBar', 'UI mounted successfully');
 
         return root;
       },
       onRemove: (root: ReactDOM.Root | undefined) => {
-        console.log('[PersistentBar React] Unmounting UI...');
+        logger.debug('PersistentBar', 'Unmounting UI...');
         root?.unmount();
       },
     });
@@ -109,7 +111,7 @@ export default defineContentScript({
     const shadowHost = document.querySelector('matomo-heatmap-helper-bar');
     if (shadowHost) {
       (shadowHost as HTMLElement).dataset.mhhPersistentBar = 'true';
-      console.log('[PersistentBar React] Shadow host marked with data attribute');
+      logger.debug('PersistentBar', 'Shadow host marked with data attribute');
     }
   },
 });

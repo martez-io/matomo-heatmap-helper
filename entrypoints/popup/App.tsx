@@ -9,9 +9,9 @@ import { getStorage, setStorage, getCredentials } from '@/lib/storage';
 import { generateBugReportUrl } from '@/lib/github-issue';
 import { getCurrentTab } from '@/lib/messaging';
 import { resolveSiteForCurrentTab, type ResolutionResult } from '@/lib/site-resolver';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { SiteNotFound } from './SiteNotFound';
 import { Unconfigured } from './Unconfigured';
 import { NoPermission } from './NoPermission';
@@ -33,13 +33,14 @@ export default function App() {
 
     async function initialize() {
         setState('loading');
+        await logger.init();
 
         // Get current URL for display
         try {
             const tab = await getCurrentTab();
             setCurrentUrl(tab?.url || '');
         } catch (err) {
-            console.warn('[Popup] Could not get current tab:', err);
+            logger.warn('Popup', 'Could not get current tab:', err);
         }
 
         // Check credentials first
@@ -58,7 +59,7 @@ export default function App() {
             const result: ResolutionResult = await resolveSiteForCurrentTab();
 
             if (!result.success) {
-                console.log('[Popup] Site resolution failed:', result.error);
+                logger.debug('Popup', 'Site resolution failed:', result.error);
                 if (result.error === 'no-credentials') {
                     setState('unconfigured');
                 } else if (result.error === 'no-permission') {
@@ -75,7 +76,7 @@ export default function App() {
             });
             setState('ready');
         } catch (err) {
-            console.error('[Popup] Site resolution error:', err);
+            logger.error('Popup', 'Site resolution error:', err);
             setState('no-site');
         }
     }
@@ -101,7 +102,7 @@ export default function App() {
                 await browser.tabs.reload(tab.id);
             }
         } catch (err) {
-            console.error('[Popup] Failed to reload tab:', err);
+            logger.error('Popup', 'Failed to reload tab:', err);
         }
     }
 
@@ -118,7 +119,7 @@ export default function App() {
             const bugReportUrl = await generateBugReportUrl({ matomoDetected: false });
             browser.tabs.create({ url: bugReportUrl, active: true });
         } catch (err) {
-            console.error('[Popup] Failed to open bug report:', err);
+            logger.error('Popup', 'Failed to open bug report:', err);
         }
     }
 

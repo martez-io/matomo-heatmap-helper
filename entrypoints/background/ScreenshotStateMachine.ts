@@ -8,6 +8,7 @@ import { browser } from 'wxt/browser';
 import { getStorage, setStorage, getCredentials } from '@/lib/storage';
 import { createMatomoClient, type MatomoApiClient } from '@/lib/matomo-api';
 import { sendToContentScript, triggerMatomoScreenshot } from '@/lib/messaging';
+import { logger } from '@/lib/logger';
 import type { ProcessingStep, ScreenshotProgress } from '@/types/storage';
 
 export type ScreenshotState =
@@ -47,7 +48,7 @@ export class ScreenshotStateMachine {
       throw new Error(`Cannot start: current state is ${this.currentState}`);
     }
 
-    console.log('[StateMachine] Starting screenshot:', params);
+    logger.debug('StateMachine', 'Starting screenshot:', params);
 
     this.context = {
       ...params,
@@ -73,7 +74,7 @@ export class ScreenshotStateMachine {
    * Transition to a new state and execute it
    */
   private async transition(newState: ScreenshotState): Promise<void> {
-    console.log(`[StateMachine] ${this.currentState} → ${newState}`);
+    logger.debug('StateMachine', `${this.currentState} → ${newState}`);
 
     this.currentState = newState;
     await this.persistState();
@@ -132,7 +133,7 @@ export class ScreenshotStateMachine {
    * STEP 1: Validate heatmap configuration
    */
   private async validateHeatmap(): Promise<void> {
-    console.log('[StateMachine] Validating heatmap...');
+    logger.debug('StateMachine', 'Validating heatmap...');
 
     if (!this.apiClient || !this.context) return;
 
@@ -145,13 +146,13 @@ export class ScreenshotStateMachine {
 
     // Enable manual capture if needed
     if (heatmap.capture_manually === 0) {
-      console.log('[StateMachine] Enabling manual capture...');
+      logger.debug('StateMachine', 'Enabling manual capture...');
       await this.apiClient.updateHeatmap({ ...heatmap, capture_manually: 1 });
     }
 
     // Resume if ended
     if (heatmap.status === 'ended') {
-      console.log('[StateMachine] Resuming ended heatmap...');
+      logger.debug('StateMachine', 'Resuming ended heatmap...');
       await this.apiClient.resumeHeatmap(this.context.siteId, this.context.heatmapId);
     }
 
@@ -159,11 +160,11 @@ export class ScreenshotStateMachine {
     try {
       const status = await sendToContentScript(this.context.tabId, { action: 'getStatus' });
       if ('isInteractiveMode' in status && status.isInteractiveMode) {
-        console.log('[StateMachine] Exiting interactive mode...');
+        logger.debug('StateMachine', 'Exiting interactive mode...');
         await sendToContentScript(this.context.tabId, { action: 'exitInteractiveMode' });
       }
     } catch (err) {
-      console.warn('[StateMachine] Could not check/exit interactive mode:', err);
+      logger.warn('StateMachine', 'Could not check/exit interactive mode:', err);
     }
 
     // Proceed to expansion
@@ -174,7 +175,7 @@ export class ScreenshotStateMachine {
    * STEP 2: Expand scrollable elements
    */
   private async expandElements(): Promise<void> {
-    console.log('[StateMachine] Expanding elements...');
+    logger.debug('StateMachine', 'Expanding elements...');
 
     if (!this.context) return;
 
@@ -197,7 +198,7 @@ export class ScreenshotStateMachine {
    * STEP 3: Trigger Matomo screenshot
    */
   private async captureScreenshot(): Promise<void> {
-    console.log('[StateMachine] Capturing screenshot...');
+    logger.debug('StateMachine', 'Capturing screenshot...');
 
     if (!this.context) return;
 
@@ -218,7 +219,7 @@ export class ScreenshotStateMachine {
    * STEP 4: Verify screenshot was captured
    */
   private async verifyScreenshot(): Promise<void> {
-    console.log('[StateMachine] Verifying screenshot...');
+    logger.debug('StateMachine', 'Verifying screenshot...');
 
     if (!this.apiClient || !this.context) return;
 
@@ -240,14 +241,14 @@ export class ScreenshotStateMachine {
    * STEP 5: Restore page layout
    */
   private async restoreLayout(): Promise<void> {
-    console.log('[StateMachine] Restoring layout...');
+    logger.debug('StateMachine', 'Restoring layout...');
 
     if (!this.context) return;
 
     try {
       await sendToContentScript(this.context.tabId, { action: 'restore' });
     } catch (err) {
-      console.warn('[StateMachine] Restore failed (tab may be closed):', err);
+      logger.warn('StateMachine', 'Restore failed (tab may be closed):', err);
     }
 
     await this.transition('complete');
@@ -257,7 +258,7 @@ export class ScreenshotStateMachine {
    * STEP 6: Complete and show success
    */
   private async completeScreenshot(): Promise<void> {
-    console.log('[StateMachine] Screenshot complete!');
+    logger.debug('StateMachine', 'Screenshot complete!');
 
     if (!this.context) return;
 
@@ -271,7 +272,7 @@ export class ScreenshotStateMachine {
       await sendToContentScript(this.context.tabId, { action: 'showBorderGlow' });
       await new Promise(resolve => setTimeout(resolve, 1500));
     } catch (err) {
-      console.warn('[StateMachine] Border glow failed:', err);
+      logger.warn('StateMachine', 'Border glow failed:', err);
     }
 
     // Create heatmap view tab
@@ -293,7 +294,7 @@ export class ScreenshotStateMachine {
           await browser.tabs.create({ url, active: true });
         }
       } catch (err) {
-        console.error('[StateMachine] Failed to open heatmap tab:', err);
+        logger.error('StateMachine', 'Failed to open heatmap tab:', err);
       }
     }
 
@@ -305,7 +306,7 @@ export class ScreenshotStateMachine {
    * Handle errors during state execution
    */
   private async handleError(error: unknown): Promise<void> {
-    console.error('[StateMachine] Error:', error);
+    logger.error('StateMachine', 'Error:', error);
 
     this.context = {
       ...this.context!,
@@ -318,7 +319,7 @@ export class ScreenshotStateMachine {
         await sendToContentScript(this.context.tabId, { action: 'hideScanner' });
       }
     } catch (err) {
-      console.warn('[StateMachine] Could not hide scanner:', err);
+      logger.warn('StateMachine', 'Could not hide scanner:', err);
     }
 
     await this.transition('error');
@@ -349,7 +350,7 @@ export class ScreenshotStateMachine {
    * Cancel the current screenshot process
    */
   async cancel(): Promise<void> {
-    console.log('[StateMachine] Cancelling screenshot');
+    logger.debug('StateMachine', 'Cancelling screenshot');
 
     // Attempt cleanup
     if (this.context?.tabId) {
@@ -357,7 +358,7 @@ export class ScreenshotStateMachine {
         await sendToContentScript(this.context.tabId, { action: 'restore' });
         await sendToContentScript(this.context.tabId, { action: 'hideScanner' });
       } catch (err) {
-        console.warn('[StateMachine] Cleanup failed:', err);
+        logger.warn('StateMachine', 'Cleanup failed:', err);
       }
     }
 
@@ -428,12 +429,12 @@ export class ScreenshotStateMachine {
 
     // Check if stale (> 5 minutes)
     if (Date.now() - progress.startTime > 5 * 60 * 1000) {
-      console.warn('[StateMachine] Found stale process, clearing');
+      logger.warn('StateMachine', 'Found stale process, clearing');
       await this.reset();
       return;
     }
 
-    console.log('[StateMachine] Restoring from storage:', progress);
+    logger.debug('StateMachine', 'Restoring from storage:', progress);
 
     this.context = {
       heatmapId: progress.heatmapId,
@@ -447,7 +448,7 @@ export class ScreenshotStateMachine {
     try {
       await browser.tabs.get(progress.tabId);
     } catch (err) {
-      console.warn('[StateMachine] Tab no longer exists, cancelling');
+      logger.warn('StateMachine', 'Tab no longer exists, cancelling');
       await this.cancel();
       return;
     }
@@ -457,7 +458,7 @@ export class ScreenshotStateMachine {
     if (creds) {
       this.apiClient = createMatomoClient(creds.apiUrl, creds.authToken);
     } else {
-      console.error('[StateMachine] No credentials, cannot restore');
+      logger.error('StateMachine', 'No credentials, cannot restore');
       await this.cancel();
       return;
     }
@@ -467,7 +468,7 @@ export class ScreenshotStateMachine {
 
     // Safety: Don't re-execute risky steps after restart
     if (this.currentState === 'expanding' || this.currentState === 'capturing') {
-      console.warn('[StateMachine] Unsafe to resume from', this.currentState);
+      logger.warn('StateMachine', 'Unsafe to resume from', this.currentState);
       // Skip directly to verification
       await this.transition('verifying');
     } else {

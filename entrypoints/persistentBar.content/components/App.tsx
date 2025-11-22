@@ -14,6 +14,7 @@ import {
     openBugReport,
     closeBar,
 } from '../lib/actions';
+import { logger } from '@/lib/logger';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { BarHeader } from './BarHeader';
 import { BarContent } from './BarContent';
@@ -25,7 +26,7 @@ import { MessageCarousel } from './MessageCarousel';
 export function App() {
     const { state, dispatch } = useBarState();
 
-    console.log('[App] Rendering with state:', {
+    logger.debug('App', 'Rendering with state:', {
         isMinimized: state.isMinimized,
         selectedHeatmap: state.selectedHeatmap?.idsitehsr,
         heatmapCount: state.heatmaps.length,
@@ -37,7 +38,7 @@ export function App() {
 
     // Don't render if site info not loaded yet
     if (!state.siteId || !state.siteName) {
-        console.log('[App] Waiting for site info to load...');
+        logger.debug('App', 'Waiting for site info to load...');
         return null;
     }
 

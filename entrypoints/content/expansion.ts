@@ -10,6 +10,7 @@ import {
   applyLockIndicator,
   sleep,
 } from './dom-utils';
+import { logger } from '@/lib/logger';
 
 /**
  * Remove lock indicators temporarily during restore
@@ -62,7 +63,7 @@ function reapplyLockIndicators(lockedElements: HTMLElement[]): number {
   lockedElements.forEach((element) => {
     // Check if element still exists in DOM
     if (!document.body.contains(element)) {
-      console.warn(`[Content] Locked element removed from DOM, cleaning up`);
+      logger.warn('Content', 'Locked element removed from DOM, cleaning up');
       ScrollTracker.lockedElements.delete(element);
       ScrollTracker.originalStates.delete(element);
       return;
@@ -99,13 +100,11 @@ export async function handleExpandElements(): Promise<void> {
   });
 
   if (elementsToExpand.size === 0) {
-    console.log('[Matomo Heatmap Helper] No elements to expand - skipping expansion');
+    logger.debug('Content', 'No elements to expand - skipping expansion');
     return;
   }
 
-  console.log(
-    `[Matomo Heatmap Helper] Expanding ${elementsToExpand.size} elements (${ScrollTracker.scrolledElements.size} scrolled, ${ScrollTracker.lockedElements.size} locked)`
-  );
+  logger.debug('Content', `Expanding ${elementsToExpand.size} elements (${ScrollTracker.scrolledElements.size} scrolled, ${ScrollTracker.lockedElements.size} locked)`);
 
   // Store and expand html/body
   storeOriginalState(document.documentElement);
@@ -141,14 +140,14 @@ export async function handleExpandElements(): Promise<void> {
   // Wait for rendering
   await sleep(500);
 
-  console.log('[Matomo Heatmap Helper] Elements expanded');
+  logger.debug('Content', 'Elements expanded');
 }
 
 /**
  * Restore page layout to original state
  */
 export function handleRestore(): void {
-  console.log('[Matomo Heatmap Helper] Restoring layout');
+  logger.debug('Content', 'Restoring layout');
 
   // Clean up scanner state
   document.documentElement.classList.remove('mhh-scanner-active');
@@ -168,7 +167,5 @@ export function handleRestore(): void {
   // Re-apply lock indicators to preserved elements
   const preservedCount = reapplyLockIndicators(lockedElements);
 
-  console.log(
-    `[Matomo Heatmap Helper] Layout restored, ${preservedCount} locked elements preserved`
-  );
+  logger.debug('Content', `Layout restored, ${preservedCount} locked elements preserved`);
 }

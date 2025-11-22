@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -128,6 +128,14 @@ export function CredentialsForm({ onValidate, isLoading, validationStatus, initi
                         </FormItem>
                     )}
                 />
+
+                {/* Security note */}
+                <div className="flex items-start gap-3 mt-6 p-4 rounded-lg bg-muted/50 border border-border/40">
+                    <ShieldCheck className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-sm text-muted-foreground">
+                        Your credentials are stored securely in the browser's extension storage and cannot be accessed by websites you visit.
+                    </p>
+                </div>
 
                 <Button
                     type="submit"

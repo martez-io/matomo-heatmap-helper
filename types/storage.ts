@@ -71,6 +71,9 @@ export interface StorageSchema {
     context: any;
     timestamp: number;
   }>;
+
+  // Settings
+  'settings:debugMode': boolean;
 }
 
 export const CACHE_TTL = 5 * 60 * 1000; // 5 minutes

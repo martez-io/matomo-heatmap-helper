@@ -6,14 +6,16 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Settings, Trash2, ShieldCheck } from 'lucide-react';
+import { Settings, Trash2, ShieldCheck, Bug } from 'lucide-react';
 import { toast } from 'sonner';
 import { createMatomoClient } from '@/lib/matomo-api';
-import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites } from '@/lib/storage';
+import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites, getDebugMode, setDebugMode } from '@/lib/storage';
 import { CredentialsForm } from '@/entrypoints/options/CredentialsForm';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Toaster } from '@/components/ui/sonner';
+import { Collapsible } from '@/components/ui/collapsible';
+import { Separator } from '@/components/ui/separator';
 
 type ValidationState = 'idle' | 'loading' | 'validated' | 'credentials-changed' | 'error';
 
@@ -28,11 +30,24 @@ export default function App() {
         authToken: string;
     } | null>(null);
     const [hasExistingCredentials, setHasExistingCredentials] = useState(false);
+    const [debugModeEnabled, setDebugModeEnabled] = useState(false);
 
-    // Load existing credentials on mount
+    // Load existing credentials and settings on mount
     useEffect(() => {
         loadExistingCredentials();
+        loadSettings();
     }, []);
+
+    async function loadSettings() {
+        const debugMode = await getDebugMode();
+        setDebugModeEnabled(debugMode);
+    }
+
+    async function handleDebugModeChange(enabled: boolean) {
+        setDebugModeEnabled(enabled);
+        await setDebugMode(enabled);
+        toast.success(`Debug mode ${enabled ? 'enabled' : 'disabled'}`, { duration: 2000 });
+    }
 
     // Detect credential changes to re-enable validation button
     useEffect(() => {
@@ -134,6 +149,7 @@ export default function App() {
             <Toaster position="bottom-center" />
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100/50">
                 <div className="max-w-2xl mx-auto py-16 px-4">
+
                     <Card className="border-border/40 shadow-sm">
                         <CardHeader className="space-y-6">
                             <div className="flex items-start justify-between gap-4">
@@ -148,6 +164,7 @@ export default function App() {
                                         </CardDescription>
                                     </div>
                                 </div>
+
                                 {hasExistingCredentials && (
                                     <Button
                                         onClick={handleClear}
@@ -162,23 +179,55 @@ export default function App() {
                             </div>
                         </CardHeader>
 
-                        <CardContent>
+                        <CardContent className="space-y-6">
                             <CredentialsForm
                                 onValidate={handleValidate}
                                 isLoading={validationStatus === 'loading'}
                                 validationStatus={validationStatus}
                                 initialValues={currentCredentials || undefined}
                             />
+
+                            <Collapsible
+                                trigger={<span className="text-xs uppercase tracking-wide">Advanced Settings</span>}
+                            >
+                                <div className="pt-3 pb-1">
+                                    <label className="flex items-center justify-between gap-3 cursor-pointer group">
+                                        <div className="flex items-center gap-3">
+                                            <Bug className="h-4 w-4 text-muted-foreground" />
+                                            <div>
+                                                <p className="text-sm font-medium">Debug Mode</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Enable verbose logging for troubleshooting
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={debugModeEnabled}
+                                            onClick={() => handleDebugModeChange(!debugModeEnabled)}
+                                            className={`
+                                                relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full
+                                                transition-colors duration-200 ease-in-out focus-visible:outline-none
+                                                focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                                                ${debugModeEnabled ? 'bg-primary' : 'bg-input'}
+                                            `}
+                                        >
+                                            <span
+                                                className={`
+                                                    pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg
+                                                    ring-0 transition-transform duration-200 ease-in-out
+                                                    ${debugModeEnabled ? 'translate-x-4' : 'translate-x-0.5'}
+                                                `}
+                                            />
+                                        </button>
+                                    </label>
+                                </div>
+                            </Collapsible>
                         </CardContent>
                     </Card>
 
-                    {/* Security note */}
-                    <div className="flex items-start gap-3 mt-6 p-4 rounded-lg bg-muted/50 border border-border/40">
-                        <ShieldCheck className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                        <p className="text-sm text-muted-foreground">
-                            Your credentials are stored securely in the browser's extension storage and cannot be accessed by websites you visit.
-                        </p>
-                    </div>
+
 
                     {/* Footer */}
                     <p className="text-center text-sm text-muted-foreground mt-8">

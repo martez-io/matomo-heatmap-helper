@@ -5,6 +5,7 @@
 import { ScrollTracker, type ElementMetadata } from './state';
 import { storeOriginalState, getElementSelector, findConstrainingParents } from './dom-utils';
 import { dispatchStatusUpdate } from './events';
+import { logger } from '@/lib/logger';
 
 /**
  * Handle scroll events on elements
@@ -46,7 +47,7 @@ export function handleScroll(event: Event): void {
 
     ScrollTracker.scrolledElements.set(element, metadata);
 
-    console.log(`[Matomo Heatmap Helper] Detected: ${selector}`);
+    logger.debug('Content', `Detected: ${selector}`);
 
     // Notify persistent bar
     dispatchStatusUpdate();
@@ -65,9 +66,7 @@ export function removeScrollListeners(): void {
     el.removeEventListener('scroll', handleScroll);
   });
 
-  console.log(
-    `[Matomo Heatmap Helper] Removed ${ScrollTracker.elementsWithListeners.length} scroll listeners`
-  );
+  logger.debug('Content', `Removed ${ScrollTracker.elementsWithListeners.length} scroll listeners`);
 
   // Clear the list
   ScrollTracker.elementsWithListeners = [];
@@ -93,9 +92,7 @@ export function handleStartTracking(heatmapId: number): void {
     el.addEventListener('scroll', handleScroll, { passive: true });
   });
 
-  console.log(
-    `[Matomo Heatmap Helper] Tracking started (${ScrollTracker.elementsWithListeners.length} listeners attached)`
-  );
+  logger.debug('Content', `Tracking started (${ScrollTracker.elementsWithListeners.length} listeners attached)`);
 
   // Notify persistent bar
   dispatchStatusUpdate();
@@ -119,7 +116,7 @@ export function handleStopTracking(): void {
   // Clear tracked elements
   ScrollTracker.scrolledElements.clear();
 
-  console.log('[Matomo Heatmap Helper] Tracking stopped and state cleared');
+  logger.debug('Content', 'Tracking stopped and state cleared');
 
   // Notify persistent bar
   dispatchStatusUpdate();

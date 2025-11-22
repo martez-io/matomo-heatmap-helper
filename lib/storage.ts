@@ -162,3 +162,18 @@ export async function saveAvailableSites(sites: Array<{ idsite: number; name: st
 export function isCacheValid(timestamp: number, ttl: number = 5 * 60 * 1000): boolean {
   return Date.now() - timestamp < ttl;
 }
+
+/**
+ * Get debug mode setting (defaults to false)
+ */
+export async function getDebugMode(): Promise<boolean> {
+  const value = await getStorage('settings:debugMode');
+  return value ?? false;
+}
+
+/**
+ * Set debug mode setting
+ */
+export async function setDebugMode(enabled: boolean): Promise<void> {
+  await setStorage('settings:debugMode', enabled);
+}

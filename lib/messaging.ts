@@ -10,6 +10,7 @@ import type {
   BackgroundResponse,
   MatomoPageContextResponse,
 } from '@/types/messages';
+import { logger } from './logger';
 
 /**
  * Send a message to a content script with type safety
@@ -76,11 +77,8 @@ export async function triggerMatomoScreenshot(
   return executeInPageContext<MatomoPageContextResponse>(
     tabId,
     (heatmapIdParam: number) => {
-      console.log('[Page Context] Triggering Matomo with ID:', heatmapIdParam);
-
       // Check if Matomo exists
       if (typeof window._paq === 'undefined') {
-        console.error('[Page Context] Matomo (_paq) not found');
         return {
           success: false,
           error:
@@ -92,7 +90,6 @@ export async function triggerMatomoScreenshot(
       window._paq.push(['HeatmapSessionRecording::captureInitialDom', parseInt(String(heatmapIdParam))]);
       window._paq.push(['HeatmapSessionRecording::enable']);
 
-      console.log('[Page Context] Matomo screenshot triggered successfully');
       return { success: true };
     },
     [heatmapId]
@@ -115,7 +112,7 @@ export async function checkMatomoExists(tabId: number): Promise<boolean> {
 
     return result.hasMatomо;
   } catch (error) {
-    console.error('[Messaging] Failed to check Matomo:', error);
+    logger.error('Messaging', 'Failed to check Matomo:', error);
     return false;
   }
 }

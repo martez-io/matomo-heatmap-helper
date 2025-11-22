@@ -5,13 +5,14 @@
 
 import { useEffect } from 'react';
 import { storage } from 'wxt/utils/storage';
+import { logger } from '@/lib/logger';
 import type { BarAction } from '../types';
 import type { MatomoHeatmap } from '@/types/matomo';
 import type { ProcessingStep } from '@/types/storage';
 
 export function useStorageSync(dispatch: React.Dispatch<BarAction>) {
   useEffect(() => {
-    console.log('[useStorageSync] Setting up storage watchers...');
+    logger.debug('useStorageSync', 'Setting up storage watchers...');
 
     // Watch for heatmap cache updates
     const unwatchHeatmaps = storage.watch<
@@ -27,13 +28,13 @@ export function useStorageSync(dispatch: React.Dispatch<BarAction>) {
       const siteId = await storage.getItem<number>('local:persistentBar:siteId');
 
       if (newValue && siteId && newValue[siteId]?.heatmaps) {
-        console.log('[useStorageSync] Heatmaps updated for site', siteId, ':', newValue[siteId].heatmaps.length);
+        logger.debug('useStorageSync', 'Heatmaps updated for site', siteId, ':', newValue[siteId].heatmaps.length);
         dispatch({
           type: 'SET_STATE',
           payload: { heatmaps: newValue[siteId].heatmaps },
         });
       } else if (newValue && siteId && !newValue[siteId]) {
-        console.log('[useStorageSync] No heatmaps found for site', siteId);
+        logger.debug('useStorageSync', 'No heatmaps found for site', siteId);
         dispatch({
           type: 'SET_STATE',
           payload: { heatmaps: [] },
@@ -46,7 +47,7 @@ export function useStorageSync(dispatch: React.Dispatch<BarAction>) {
       'local:ui:selectedHeatmapId',
       (newValue) => {
         if (newValue !== undefined) {
-          console.log('[useStorageSync] Selected heatmap ID updated:', newValue);
+          logger.debug('useStorageSync', 'Selected heatmap ID updated:', newValue);
           // Will be resolved in useBarState's initial load
         }
       }
@@ -57,7 +58,7 @@ export function useStorageSync(dispatch: React.Dispatch<BarAction>) {
       'local:state:isProcessing',
       (newValue) => {
         if (newValue !== undefined && newValue !== null) {
-          console.log('[useStorageSync] Processing state updated:', newValue);
+          logger.debug('useStorageSync', 'Processing state updated:', newValue);
           dispatch({
             type: 'SET_PROCESSING',
             payload: newValue,
@@ -70,7 +71,7 @@ export function useStorageSync(dispatch: React.Dispatch<BarAction>) {
     const unwatchStep = storage.watch<ProcessingStep | null>(
       'local:state:processingStep',
       (newValue) => {
-        console.log('[useStorageSync] Processing step updated:', newValue);
+        logger.debug('useStorageSync', 'Processing step updated:', newValue);
         dispatch({
           type: 'SET_PROCESSING_STEP',
           payload: newValue ?? null,
@@ -82,7 +83,7 @@ export function useStorageSync(dispatch: React.Dispatch<BarAction>) {
     const unwatchError = storage.watch<string | null>(
       'local:ui:error',
       (newValue) => {
-        console.log('[useStorageSync] Error updated:', newValue);
+        logger.debug('useStorageSync', 'Error updated:', newValue);
         dispatch({
           type: 'SET_ERROR',
           payload: newValue ?? null,
@@ -91,7 +92,7 @@ export function useStorageSync(dispatch: React.Dispatch<BarAction>) {
     );
 
     return () => {
-      console.log('[useStorageSync] Cleaning up storage watchers...');
+      logger.debug('useStorageSync', 'Cleaning up storage watchers...');
       unwatchHeatmaps();
       unwatchSelected();
       unwatchProcessing();

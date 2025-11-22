@@ -4,20 +4,22 @@ import { getStorage, getCredentials, setStorage } from '@/lib/storage';
 import { createMatomoClient } from '@/lib/matomo-api';
 import { resolveSiteForUrl } from '@/lib/site-resolver';
 import { generateBugReportUrl } from '@/lib/github-issue';
+import { logger } from '@/lib/logger';
 import type { BackgroundMessage, BackgroundResponse } from '@/types/messages';
 
 let screenshotMachine: ScreenshotStateMachine;
 
 export default defineBackground({
-  main() {
-    console.log('[Background] Service worker initialized');
+  async main() {
+    await logger.init();
+    logger.debug('Background', 'Service worker initialized');
 
     // Initialize state machine
     screenshotMachine = new ScreenshotStateMachine();
 
     // Handle messages from popup/bar
     browser.runtime.onMessage.addListener((message: BackgroundMessage, sender, sendResponse) => {
-      console.log('[Background] Received message:', message);
+      logger.debug('Background', 'Received message:', message);
 
       handleMessage(message, sender)
         .then((result) => sendResponse(result))
@@ -31,7 +33,7 @@ export default defineBackground({
       if (changeInfo.status === 'loading') {
         const progress = await getStorage('state:screenshotInProgress');
         if (progress && progress.tabId === tabId) {
-          console.warn('[Background] Page navigation during screenshot, cancelling');
+          logger.warn('Background', 'Page navigation during screenshot, cancelling');
           await screenshotMachine.cancel();
         }
       }
@@ -41,7 +43,7 @@ export default defineBackground({
     browser.tabs.onRemoved.addListener(async (tabId) => {
       const progress = await getStorage('state:screenshotInProgress');
       if (progress && progress.tabId === tabId) {
-        console.warn('[Background] Tab closed during screenshot, cancelling');
+        logger.warn('Background', 'Tab closed during screenshot, cancelling');
         await screenshotMachine.cancel();
       }
     });
@@ -106,14 +108,14 @@ async function fetchHeatmaps(siteId: number, forceRefresh?: boolean): Promise<Ba
       if (cache && cache[siteId]) {
         const isFresh = Date.now() - cache[siteId].timestamp < 5 * 60 * 1000;
         if (isFresh) {
-          console.log('[Background] Using cached heatmaps for site', siteId);
+          logger.debug('Background', 'Using cached heatmaps for site', siteId);
           return { success: true };
         }
       }
     }
 
     // Fetch from API
-    console.log('[Background] Fetching heatmaps from API for site', siteId);
+    logger.debug('Background', 'Fetching heatmaps from API for site', siteId);
     const client = createMatomoClient(creds.apiUrl, creds.authToken);
     const heatmaps = await client.getHeatmaps(siteId);
 
@@ -127,10 +129,10 @@ async function fetchHeatmaps(siteId: number, forceRefresh?: boolean): Promise<Ba
       },
     });
 
-    console.log('[Background] Heatmaps cached:', heatmaps.length);
+    logger.debug('Background', 'Heatmaps cached:', heatmaps.length);
     return { success: true };
   } catch (error) {
-    console.error('[Background] Failed to fetch heatmaps:', error);
+    logger.error('Background', 'Failed to fetch heatmaps:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -140,7 +142,7 @@ async function fetchHeatmaps(siteId: number, forceRefresh?: boolean): Promise<Ba
 
 async function resolveSite(url: string): Promise<BackgroundResponse> {
   try {
-    console.log('[Background] Resolving site for URL:', url);
+    logger.debug('Background', 'Resolving site for URL:', url);
     const result = await resolveSiteForUrl(url);
 
     if (!result.success) {
@@ -156,7 +158,7 @@ async function resolveSite(url: string): Promise<BackgroundResponse> {
       siteName: result.siteName,
     };
   } catch (error) {
-    console.error('[Background] Failed to resolve site:', error);
+    logger.error('Background', 'Failed to resolve site:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -166,7 +168,7 @@ async function resolveSite(url: string): Promise<BackgroundResponse> {
 
 // Legacy handler for backward compatibility
 async function handleSuccessfulScreenshot(tabId: number, url: string): Promise<BackgroundResponse> {
-  console.log('[Background] Handling successful screenshot (legacy)');
+  logger.debug('Background', 'Handling successful screenshot (legacy)');
 
   try {
     // Send message to content script to show border glow
@@ -176,13 +178,13 @@ async function handleSuccessfulScreenshot(tabId: number, url: string): Promise<B
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Open heatmap tab
-    console.log('[Background] Opening heatmap tab:', url);
+    logger.debug('Background', 'Opening heatmap tab:', url);
     const tab = await browser.tabs.create({ url, active: true });
 
-    console.log('[Background] Heatmap tab created:', tab.id);
+    logger.debug('Background', 'Heatmap tab created:', tab.id);
     return { success: true, tabId: tab.id };
   } catch (error) {
-    console.error('[Background] Error:', error);
+    logger.error('Background', 'Error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -192,17 +194,17 @@ async function handleSuccessfulScreenshot(tabId: number, url: string): Promise<B
 
 async function handleOpenSettings(): Promise<BackgroundResponse> {
   try {
-    console.log('[Background] Opening settings page');
+    logger.debug('Background', 'Opening settings page');
 
     // Get the options page URL - WXT generates it as chrome-extension://[ID]/options.html
     const optionsUrl = browser.runtime.getURL('options.html');
 
     const tab = await browser.tabs.create({ url: optionsUrl, active: true });
 
-    console.log('[Background] Settings tab created:', tab.id);
+    logger.debug('Background', 'Settings tab created:', tab.id);
     return { success: true, tabId: tab.id };
   } catch (error) {
-    console.error('[Background] Failed to open settings:', error);
+    logger.error('Background', 'Failed to open settings:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -212,7 +214,7 @@ async function handleOpenSettings(): Promise<BackgroundResponse> {
 
 async function handleOpenBugReport(): Promise<BackgroundResponse> {
   try {
-    console.log('[Background] Opening bug report');
+    logger.debug('Background', 'Opening bug report');
 
     // Generate bug report URL with browser/environment details
     // Assume Matomo is detected since persistent bar only shows on Matomo pages
@@ -220,10 +222,10 @@ async function handleOpenBugReport(): Promise<BackgroundResponse> {
 
     const tab = await browser.tabs.create({ url: bugReportUrl, active: true });
 
-    console.log('[Background] Bug report tab created:', tab.id);
+    logger.debug('Background', 'Bug report tab created:', tab.id);
     return { success: true, tabId: tab.id };
   } catch (error) {
-    console.error('[Background] Failed to open bug report:', error);
+    logger.error('Background', 'Failed to open bug report:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

@@ -2,6 +2,8 @@
  * Visual animations and style injection for content script
  */
 
+import { logger } from '@/lib/logger';
+
 /**
  * Inject CSS styles for lock indicators and animations
  */
@@ -80,7 +82,7 @@ export function injectStyles(): void {
     }
   `;
   document.head.appendChild(style);
-  console.log('[Content] Styles injected');
+  logger.debug('Content', 'Styles injected');
 }
 
 /**
@@ -137,7 +139,7 @@ export function showScanner(): void {
     overlay.style.opacity = '1';
   });
 
-  console.log('[Content] Scanner overlay injected');
+  logger.debug('Content', 'Scanner overlay injected');
 }
 
 /**
@@ -153,9 +155,9 @@ export function hideScanner(): void {
     setTimeout(() => {
       scanner.remove();
     }, 500); // Match transition duration
-    console.log('[Content] Scanner overlay removed');
+    logger.debug('Content', 'Scanner overlay removed');
   } else {
-    console.log('[Content] Scanner overlay not found, class removed');
+    logger.debug('Content', 'Scanner overlay not found, class removed');
   }
 }
 
@@ -198,7 +200,7 @@ export function showBorderGlow(): void {
     overlay.style.opacity = '1';
   });
 
-  console.log('[Content] Border glow overlay injected');
+  logger.debug('Content', 'Border glow overlay injected');
 
   // Fade out after 1s
   setTimeout(() => {

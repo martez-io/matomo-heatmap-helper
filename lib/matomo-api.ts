@@ -5,10 +5,9 @@
 import type {
   MatomoHeatmap,
   MatomoSite,
-  MatomoApiResponse,
-  isMatomoApiError,
   HeatmapVerificationResponse,
 } from '@/types/matomo';
+import { logger } from '@/lib/logger';
 
 export class MatomoApiClient {
   constructor(
@@ -31,7 +30,7 @@ export class MatomoApiClient {
       formData.append(key, String(value));
     }
 
-    console.log('[MatomoAPI] Calling:', params.method);
+    logger.debug('MatomoAPI', 'Calling:', params.method);
 
     try {
       const response = await fetch(url, {
@@ -52,7 +51,7 @@ export class MatomoApiClient {
         throw new Error(`HTTP ${response.status}: ${response.statusText} (Invalid JSON response)`);
       }
 
-      console.log('[MatomoAPI] Response:', data);
+      logger.debug('MatomoAPI', 'Response:', data);
 
       // Check for Matomo API error response (handles both 200 and 4xx/5xx responses)
       if (data.result === 'error' && data.message) {
@@ -75,7 +74,7 @@ export class MatomoApiClient {
 
       return data as T;
     } catch (error) {
-      console.error('[MatomoAPI] Call failed:', error);
+      logger.error('MatomoAPI', 'Call failed:', error);
 
       // Provide user-friendly error messages for network issues
       if (
@@ -216,14 +215,14 @@ export class MatomoApiClient {
         typeof result.page_treemirror === 'string' &&
         result.page_treemirror.trim() !== ''
       ) {
-        console.log('[MatomoAPI] Screenshot verified - page_treemirror present');
+        logger.debug('MatomoAPI', 'Screenshot verified - page_treemirror present');
         return true;
       } else {
-        console.warn('[MatomoAPI] Screenshot not verified - page_treemirror missing or empty');
+        logger.warn('MatomoAPI', 'Screenshot not verified - page_treemirror missing or empty');
         return false;
       }
     } catch (error) {
-      console.error('[MatomoAPI] Failed to verify screenshot:', error);
+      logger.error('MatomoAPI', 'Failed to verify screenshot:', error);
       return false;
     }
   }
@@ -237,21 +236,21 @@ export class MatomoApiClient {
     maxAttempts = 50,
     delayMs = 300
   ): Promise<boolean> {
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      console.log(`[MatomoAPI] Verifying screenshot (${attempt}/${maxAttempts})...`);
+    logger.debug('MatomoAPI', `Verifying screenshot capture (max ${maxAttempts} attempts)...`);
 
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       // Wait before checking
       await new Promise((resolve) => setTimeout(resolve, delayMs));
 
       // Verify
       const success = await this.verifyScreenshotCaptured(siteId, heatmapId);
       if (success) {
-        console.log('[MatomoAPI] Screenshot verified successfully!');
+        logger.debug('MatomoAPI', `Screenshot verified after ${attempt} attempt(s)`);
         return true;
       }
     }
 
-    console.error('[MatomoAPI] Screenshot verification timed out');
+    logger.error('MatomoAPI', `Screenshot verification timed out after ${maxAttempts} attempts`);
     return false;
   }
 }

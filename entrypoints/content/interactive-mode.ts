@@ -14,6 +14,7 @@ import {
   detectAvailablePseudoElement,
 } from './dom-utils';
 import { dispatchStatusUpdate } from './events';
+import { logger } from '@/lib/logger';
 
 /**
  * Sync state to storage
@@ -66,7 +67,7 @@ function lockElement(element: HTMLElement): void {
 
   ScrollTracker.lockedElements.set(element, metadata);
 
-  console.log(`[Content] Locked: ${selector} (${computedHeight}px, indicator: ${indicatorType})`);
+  logger.debug('Content', `Locked: ${selector} (${computedHeight}px, indicator: ${indicatorType})`);
 
   // Notify persistent bar
   dispatchStatusUpdate();
@@ -100,7 +101,7 @@ function unlockElement(element: HTMLElement): void {
     element.style.position = originalState.position;
   }
 
-  console.log(`[Content] Unlocked: ${getElementSelector(element)}`);
+  logger.debug('Content', `Unlocked: ${getElementSelector(element)}`);
 }
 
 /**
@@ -272,7 +273,7 @@ function handleInteractiveKeydown(event: KeyboardEvent): void {
  */
 export function handleEnterInteractiveMode(): void {
   if (ScrollTracker.isInteractiveMode) {
-    console.log('[Content] Interactive mode already active');
+    logger.debug('Content', 'Interactive mode already active');
     return;
   }
 
@@ -316,7 +317,7 @@ export function handleEnterInteractiveMode(): void {
   document.addEventListener('click', handleInteractiveClick, true);
   document.addEventListener('keydown', handleInteractiveKeydown);
 
-  console.log('[Content] Interactive mode enabled');
+  logger.debug('Content', 'Interactive mode enabled');
 }
 
 /**
@@ -345,7 +346,7 @@ export function handleExitInteractiveMode(): void {
   // Reset cursor to default
   document.body.style.cursor = '';
 
-  console.log('[Content] Interactive mode disabled');
+  logger.debug('Content', 'Interactive mode disabled');
 }
 
 /**

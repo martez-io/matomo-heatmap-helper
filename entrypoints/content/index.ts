@@ -14,13 +14,15 @@ import {
   getLockedElementsStatus,
 } from './interactive-mode';
 import { injectStyles, showScanner, hideScanner, showBorderGlow } from './animations';
+import { logger } from '@/lib/logger';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
 
-  main() {
-    console.log('[Matomo Heatmap Helper] Content script loaded');
+  async main() {
+    await logger.init();
+    logger.debug('Content', 'Content script loaded');
 
     // Inject styles immediately so lock indicators work
     injectStyles();
@@ -31,7 +33,7 @@ export default defineContentScript({
     // Listen for messages from popup/background
     browser.runtime.onMessage.addListener(
       (request: ContentScriptMessage, _sender, sendResponse) => {
-        console.log('[Content] Message received:', request);
+        logger.debug('Content', 'Message received:', request);
 
         try {
           switch (request.action) {
@@ -95,7 +97,7 @@ export default defineContentScript({
               sendResponse({ success: false, error: 'Unknown action' });
           }
         } catch (error) {
-          console.error('[Content] Error handling message:', error);
+          logger.error('Content', 'Error handling message:', error);
           sendResponse({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -140,7 +142,7 @@ function setupBarEventListeners(): void {
     handleExitInteractiveMode();
   }) as EventListener);
 
-  console.log('[Content] Bar event listeners setup');
+  logger.debug('Content', 'Bar event listeners setup');
 }
 
 /**

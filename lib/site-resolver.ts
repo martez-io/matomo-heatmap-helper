@@ -3,7 +3,7 @@
  */
 
 import { browser } from 'wxt/browser';
-import { createMatomoClient } from './matomo-api';
+import { createMatomoClient, MatomoApiClient } from './matomo-api';
 import {
   getDomainSiteMapping,
   saveDomainSiteMapping,
@@ -12,6 +12,7 @@ import {
   getCredentials,
 } from './storage';
 import type { MatomoSite } from '@/types/matomo';
+import { logger } from './logger';
 
 export type ResolutionResult =
   | { success: true; siteId: number; siteName: string }
@@ -30,277 +31,6 @@ function extractDomain(url: string): string {
 }
 
 /**
- * Resolve site ID for the current browser tab
- */
-export async function resolveSiteForCurrentTab(): Promise<ResolutionResult> {
-  // Get current tab URL
-  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-  const currentTab = tabs[0];
-
-  if (!currentTab?.url) {
-    console.error('[SiteResolver] No active tab found');
-    return { success: false, error: 'no-site' };
-  }
-
-  const domain = extractDomain(currentTab.url);
-  if (!domain) {
-    console.error('[SiteResolver] Could not extract domain from URL:', currentTab.url);
-    return { success: false, error: 'no-site' };
-  }
-
-  console.log('[SiteResolver] Resolving site for domain:', domain);
-
-  // Get credentials
-  const credentials = await getCredentials();
-  if (!credentials) {
-    console.error('[SiteResolver] No credentials found');
-    return { success: false, error: 'no-credentials' };
-  }
-
-  // Check if domain is already cached
-  const cachedMapping = await getDomainSiteMapping(domain);
-  if (cachedMapping) {
-    console.log('[SiteResolver] Using cached mapping:', cachedMapping);
-    return {
-      success: true,
-      siteId: cachedMapping.siteId,
-      siteName: cachedMapping.siteName,
-    };
-  }
-
-  // Not cached, need to resolve via API
-  const client = createMatomoClient(credentials.apiUrl, credentials.authToken);
-
-  try {
-    // Step 1: Get site IDs that match this domain
-    // Try multiple URL format variations to find a match
-    const urlObj = new URL(currentTab.url);
-    const urlVariations = [
-      { label: 'Full URL', value: currentTab.url },
-      { label: 'Base URL (protocol + domain)', value: `${urlObj.protocol}//${urlObj.hostname}` },
-      { label: 'Domain only', value: domain },
-      { label: 'HTTPS base URL', value: `https://${urlObj.hostname}` },
-      { label: 'HTTP base URL', value: `http://${urlObj.hostname}` },
-    ];
-
-    console.log('[SiteResolver] Trying multiple URL format variations...');
-    let matchingSiteIds: number[] = [];
-
-    for (const variation of urlVariations) {
-      console.log(`[SiteResolver] Trying ${variation.label}: ${variation.value}`);
-      const result = await client.getSitesIdFromSiteUrl(variation.value);
-
-      if (result && result.length > 0) {
-        console.log(`[SiteResolver] ✓ SUCCESS! Found matching site IDs with ${variation.label}:`, result);
-        matchingSiteIds = result;
-        break;
-      } else {
-        console.log(`[SiteResolver] ✗ No match with ${variation.label}`);
-      }
-    }
-
-    if (!matchingSiteIds || matchingSiteIds.length === 0) {
-      console.log('[SiteResolver] ✗ No sites match this domain with any URL format variation');
-      return { success: false, error: 'no-site' };
-    }
-
-    console.log('[SiteResolver] Found matching site IDs:', matchingSiteIds);
-
-    // Step 2: Get available sites (with write permission)
-    let availableSites = await getAvailableSites();
-
-    if (!availableSites) {
-      console.log('[SiteResolver] No cached available sites, fetching...');
-      availableSites = await client.getSitesWithWriteAccess();
-      await saveAvailableSites(availableSites);
-    }
-
-    // Step 3: Filter matching IDs by available sites (write permission check)
-    const sitesWithPermission = filterSitesByPermission(matchingSiteIds, availableSites);
-
-    if (sitesWithPermission.length === 0) {
-      // No matches found, try refetching available sites
-      console.log('[SiteResolver] No matching sites with write permission, refetching sites...');
-      availableSites = await client.getSitesWithWriteAccess();
-      await saveAvailableSites(availableSites);
-
-      const sitesWithPermissionRetry = filterSitesByPermission(matchingSiteIds, availableSites);
-
-      if (sitesWithPermissionRetry.length === 0) {
-        console.error('[SiteResolver] No write permission for any matching sites');
-        return { success: false, error: 'no-permission' };
-      }
-
-      // Use first match after retry
-      const selectedSite = sitesWithPermissionRetry[0];
-      await saveDomainSiteMapping(domain, selectedSite.idsite, selectedSite.name);
-
-      return {
-        success: true,
-        siteId: selectedSite.idsite,
-        siteName: selectedSite.name,
-      };
-    }
-
-    // Step 4: Use first matching site with permission
-    const selectedSite = sitesWithPermission[0];
-    console.log('[SiteResolver] Selected site:', selectedSite);
-
-    // Cache the mapping
-    await saveDomainSiteMapping(domain, selectedSite.idsite, selectedSite.name);
-
-    return {
-      success: true,
-      siteId: selectedSite.idsite,
-      siteName: selectedSite.name,
-    };
-  } catch (error) {
-    console.error('[SiteResolver] Resolution failed:', error);
-    return { success: false, error: 'no-site' };
-  }
-}
-
-/**
- * Resolve site ID for a given URL (background worker safe)
- * Used when caller provides the URL directly
- */
-export async function resolveSiteForUrl(url: string): Promise<ResolutionResult> {
-  // Use provided URL
-  const currentUrl = url;
-
-  if (!currentUrl) {
-    console.error('[SiteResolver] No URL found');
-    return { success: false, error: 'no-site' };
-  }
-
-  const domain = extractDomain(currentUrl);
-  if (!domain) {
-    console.error('[SiteResolver] Could not extract domain from URL:', currentUrl);
-    return { success: false, error: 'no-site' };
-  }
-
-  console.log('[SiteResolver] Resolving site for domain:', domain);
-
-  // Get credentials
-  const credentials = await getCredentials();
-  if (!credentials) {
-    console.error('[SiteResolver] No credentials found');
-    return { success: false, error: 'no-credentials' };
-  }
-
-  // Check if domain is already cached
-  const cachedMapping = await getDomainSiteMapping(domain);
-  if (cachedMapping) {
-    console.log('[SiteResolver] Using cached mapping:', cachedMapping);
-    return {
-      success: true,
-      siteId: cachedMapping.siteId,
-      siteName: cachedMapping.siteName,
-    };
-  }
-
-  // Not cached, need to resolve via API
-  const client = createMatomoClient(credentials.apiUrl, credentials.authToken);
-
-  try {
-    // Step 1: Get site IDs that match this domain
-    // Try multiple URL format variations to find a match
-    const urlObj = new URL(currentUrl);
-    const urlVariations = [
-      { label: 'Full URL', value: currentUrl },
-      { label: 'Base URL (protocol + domain)', value: `${urlObj.protocol}//${urlObj.hostname}` },
-      { label: 'Domain only', value: domain },
-      { label: 'HTTPS base URL', value: `https://${urlObj.hostname}` },
-      { label: 'HTTP base URL', value: `http://${urlObj.hostname}` },
-    ];
-
-    console.log('[SiteResolver] Trying multiple URL format variations...');
-    let matchingSiteIds: number[] = [];
-
-    for (const variation of urlVariations) {
-      console.log(`[SiteResolver] Trying ${variation.label}: ${variation.value}`);
-      const result = await client.getSitesIdFromSiteUrl(variation.value);
-
-      if (result && result.length > 0) {
-        console.log(`[SiteResolver] ✓ SUCCESS! Found matching site IDs with ${variation.label}:`, result);
-        matchingSiteIds = result;
-        break;
-      } else {
-        console.log(`[SiteResolver] ✗ No match with ${variation.label}`);
-      }
-    }
-
-    if (!matchingSiteIds || matchingSiteIds.length === 0) {
-      console.log('[SiteResolver] ✗ No sites match this domain with any URL format variation');
-      return { success: false, error: 'no-site' };
-    }
-
-    console.log('[SiteResolver] Found matching site IDs:', matchingSiteIds);
-
-    // Step 2: Get available sites (with write permission)
-    let availableSites = await getAvailableSites();
-
-    if (!availableSites) {
-      console.log('[SiteResolver] No cached available sites, fetching...');
-      availableSites = await client.getSitesWithWriteAccess();
-      await saveAvailableSites(availableSites);
-    }
-
-    // Step 3: Filter matching IDs by available sites (write permission check)
-    const sitesWithPermission = filterSitesByPermission(matchingSiteIds, availableSites);
-
-    if (sitesWithPermission.length === 0) {
-      // No matches found, try refetching available sites
-      console.log('[SiteResolver] No matching sites with write permission, refetching sites...');
-      availableSites = await client.getSitesWithWriteAccess();
-      await saveAvailableSites(availableSites);
-
-      const sitesWithPermissionRetry = filterSitesByPermission(matchingSiteIds, availableSites);
-
-      if (sitesWithPermissionRetry.length === 0) {
-        console.error('[SiteResolver] No write permission for any matching sites');
-        return { success: false, error: 'no-permission' };
-      }
-
-      // Use first match after retry
-      const selectedSite = sitesWithPermissionRetry[0];
-      await saveDomainSiteMapping(domain, selectedSite.idsite, selectedSite.name);
-
-      return {
-        success: true,
-        siteId: selectedSite.idsite,
-        siteName: selectedSite.name,
-      };
-    }
-
-    // Step 4: Use first matching site with permission
-    const selectedSite = sitesWithPermission[0];
-    console.log('[SiteResolver] Selected site:', selectedSite);
-
-    // Cache the mapping
-    await saveDomainSiteMapping(domain, selectedSite.idsite, selectedSite.name);
-
-    return {
-      success: true,
-      siteId: selectedSite.idsite,
-      siteName: selectedSite.name,
-    };
-  } catch (error) {
-    console.error('[SiteResolver] Resolution failed:', error);
-    return { success: false, error: 'no-site' };
-  }
-}
-
-/**
- * Resolve site ID for the current page (content script wrapper)
- * Uses window.location - WARNING: Will fail with CORS if called from content script
- * Use background message 'resolveSite' instead from content scripts
- */
-export async function resolveSiteForCurrentPage(): Promise<ResolutionResult> {
-  return resolveSiteForUrl(window.location.href);
-}
-
-/**
  * Filter site IDs by available sites (with write permission)
  */
 function filterSitesByPermission(
@@ -313,4 +43,155 @@ function filterSitesByPermission(
     .filter((id) => availableSiteIds.has(id))
     .map((id) => availableSites.find((s) => s.idsite === id)!)
     .filter(Boolean);
+}
+
+/**
+ * Core resolution logic - shared by all public resolution functions
+ */
+async function resolveForDomain(
+  url: string,
+  domain: string,
+  client: MatomoApiClient
+): Promise<ResolutionResult> {
+  // Check if domain is already cached
+  const cachedMapping = await getDomainSiteMapping(domain);
+  if (cachedMapping) {
+    logger.debug('SiteResolver', 'Using cached mapping:', cachedMapping);
+    return {
+      success: true,
+      siteId: cachedMapping.siteId,
+      siteName: cachedMapping.siteName,
+    };
+  }
+
+  try {
+    // Step 1: Try multiple URL format variations to find matching site IDs
+    const urlObj = new URL(url);
+    const urlVariations = [
+      { label: 'Full URL', value: url },
+      { label: 'Base URL', value: `${urlObj.protocol}//${urlObj.hostname}` },
+      { label: 'Domain only', value: domain },
+      { label: 'HTTPS base', value: `https://${urlObj.hostname}` },
+      { label: 'HTTP base', value: `http://${urlObj.hostname}` },
+    ];
+
+    let matchingSiteIds: number[] = [];
+    let matchedVariation: string | null = null;
+
+    for (const variation of urlVariations) {
+      const result = await client.getSitesIdFromSiteUrl(variation.value);
+      if (result && result.length > 0) {
+        matchingSiteIds = result;
+        matchedVariation = variation.label;
+        break;
+      }
+    }
+
+    if (!matchingSiteIds.length) {
+      logger.debug('SiteResolver', 'No sites match domain:', domain);
+      return { success: false, error: 'no-site' };
+    }
+
+    logger.debug('SiteResolver', `Found ${matchingSiteIds.length} site(s) via ${matchedVariation}`);
+
+    // Step 2: Get available sites (with write permission)
+    let availableSites = await getAvailableSites();
+    if (!availableSites) {
+      availableSites = await client.getSitesWithWriteAccess();
+      await saveAvailableSites(availableSites);
+    }
+
+    // Step 3: Filter matching IDs by available sites (write permission check)
+    let sitesWithPermission = filterSitesByPermission(matchingSiteIds, availableSites);
+
+    // Retry with fresh site list if no permission found
+    if (sitesWithPermission.length === 0) {
+      availableSites = await client.getSitesWithWriteAccess();
+      await saveAvailableSites(availableSites);
+      sitesWithPermission = filterSitesByPermission(matchingSiteIds, availableSites);
+
+      if (sitesWithPermission.length === 0) {
+        logger.error('SiteResolver', 'No write permission for matching sites');
+        return { success: false, error: 'no-permission' };
+      }
+    }
+
+    // Step 4: Use first matching site with permission
+    const selectedSite = sitesWithPermission[0];
+    logger.debug('SiteResolver', 'Selected site:', selectedSite.name, `(${selectedSite.idsite})`);
+
+    // Cache the mapping
+    await saveDomainSiteMapping(domain, selectedSite.idsite, selectedSite.name);
+
+    return {
+      success: true,
+      siteId: selectedSite.idsite,
+      siteName: selectedSite.name,
+    };
+  } catch (error) {
+    logger.error('SiteResolver', 'Resolution failed:', error);
+    return { success: false, error: 'no-site' };
+  }
+}
+
+/**
+ * Resolve site ID for the current browser tab
+ */
+export async function resolveSiteForCurrentTab(): Promise<ResolutionResult> {
+  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+  const currentTab = tabs[0];
+
+  if (!currentTab?.url) {
+    logger.error('SiteResolver', 'No active tab found');
+    return { success: false, error: 'no-site' };
+  }
+
+  const domain = extractDomain(currentTab.url);
+  if (!domain) {
+    logger.error('SiteResolver', 'Could not extract domain from URL:', currentTab.url);
+    return { success: false, error: 'no-site' };
+  }
+
+  const credentials = await getCredentials();
+  if (!credentials) {
+    logger.error('SiteResolver', 'No credentials found');
+    return { success: false, error: 'no-credentials' };
+  }
+
+  logger.debug('SiteResolver', 'Resolving site for domain:', domain);
+  const client = createMatomoClient(credentials.apiUrl, credentials.authToken);
+  return resolveForDomain(currentTab.url, domain, client);
+}
+
+/**
+ * Resolve site ID for a given URL (background worker safe)
+ */
+export async function resolveSiteForUrl(url: string): Promise<ResolutionResult> {
+  if (!url) {
+    logger.error('SiteResolver', 'No URL provided');
+    return { success: false, error: 'no-site' };
+  }
+
+  const domain = extractDomain(url);
+  if (!domain) {
+    logger.error('SiteResolver', 'Could not extract domain from URL:', url);
+    return { success: false, error: 'no-site' };
+  }
+
+  const credentials = await getCredentials();
+  if (!credentials) {
+    logger.error('SiteResolver', 'No credentials found');
+    return { success: false, error: 'no-credentials' };
+  }
+
+  logger.debug('SiteResolver', 'Resolving site for domain:', domain);
+  const client = createMatomoClient(credentials.apiUrl, credentials.authToken);
+  return resolveForDomain(url, domain, client);
+}
+
+/**
+ * Resolve site ID for the current page (content script wrapper)
+ */
+export async function resolveSiteForCurrentPage(): Promise<ResolutionResult> {
+  return resolveSiteForUrl(window.location.href);
 }

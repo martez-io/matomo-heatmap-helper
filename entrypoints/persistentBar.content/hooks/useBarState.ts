@@ -5,6 +5,7 @@
 
 import { useReducer, useEffect } from 'react';
 import { storage } from 'wxt/utils/storage';
+import { logger } from '@/lib/logger';
 import type { BarState, BarAction } from '../types';
 import type { MatomoHeatmap } from '@/types/matomo';
 import { useStorageSync } from './useStorageSync';
@@ -77,7 +78,7 @@ export function useBarState() {
 
   // Initial data load
   useEffect(() => {
-    console.log('[useBarState] Loading initial state from storage...');
+    logger.debug('useBarState', 'Loading initial state from storage...');
 
     const loadInitialState = async () => {
       try {
@@ -104,7 +105,7 @@ export function useBarState() {
           'local:ui:selectedHeatmapId'
         );
 
-        console.log('[useBarState] Initial load:', {
+        logger.debug('useBarState', 'Initial load:', {
           heatmapCount: siteHeatmaps.length,
           selectedHeatmapId,
           siteId,
@@ -130,7 +131,7 @@ export function useBarState() {
 
         // Auto-start tracking if a heatmap was previously selected
         if (selectedHeatmap) {
-          console.log('[useBarState] Auto-starting tracking for heatmap:', selectedHeatmap.idsitehsr);
+          logger.debug('useBarState', 'Auto-starting tracking for heatmap:', selectedHeatmap.idsitehsr);
           window.dispatchEvent(
             new CustomEvent('mhh:startTracking', {
               detail: { heatmapId: selectedHeatmap.idsitehsr },
@@ -142,7 +143,7 @@ export function useBarState() {
           });
         }
       } catch (error) {
-        console.error('[useBarState] Failed to load initial state:', error);
+        logger.error('useBarState', 'Failed to load initial state:', error);
       }
     };
 
