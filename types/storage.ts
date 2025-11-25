@@ -25,6 +25,7 @@ export interface DomainSiteMapping {
   siteId: number;
   siteName: string;
   timestamp: number;
+  isEnforced?: boolean; // true = user-selected, false/undefined = auto-matched
 }
 
 export interface StorageSchema {
@@ -74,6 +75,9 @@ export interface StorageSchema {
 
   // Settings
   'settings:debugMode': boolean;
+
+  // Enforcement
+  'enforce:enabled': boolean;
 
   // Feedback tracking
   'feedback:promptCount': number;           // Times review prompt shown (max 3)

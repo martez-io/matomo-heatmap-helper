@@ -14,7 +14,7 @@ interface Logger {
   _initialized: boolean;
   _unwatch: (() => void) | null;
 
-  init(): Promise<void>;
+  init(skipWatcher?: boolean): Promise<void>;
   debug(tag: string, ...args: unknown[]): void;
   info(tag: string, ...args: unknown[]): void;
   warn(tag: string, ...args: unknown[]): void;
@@ -32,8 +32,10 @@ export const logger: Logger = {
    * Initialize the logger by loading debug mode from storage
    * and setting up a watcher for live updates.
    * Safe to call multiple times - will only initialize once.
+   *
+   * @param skipWatcher - Skip storage watcher setup (useful in content scripts with CSP)
    */
-  async init(): Promise<void> {
+  async init(skipWatcher: boolean = false): Promise<void> {
     if (this._initialized) return;
 
     // Load current debug mode setting
@@ -44,15 +46,16 @@ export const logger: Logger = {
       // Storage access failed - keep default (disabled)
     }
 
-    // Watch for changes to debug mode
-    // Wrapped in try-catch because storage.watch() may use a worker
-    // which can fail on pages with strict CSP (Content Security Policy)
-    try {
-      this._unwatch = storage.watch<boolean>('local:settings:debugMode', (newValue) => {
-        this._debugEnabled = newValue ?? false;
-      });
-    } catch {
-      // Watcher failed (likely CSP) - logger still works, just won't update live
+    // Skip watcher in content scripts to avoid CSP violations
+    // The watcher uses a blob worker which many websites block
+    if (!skipWatcher) {
+      try {
+        this._unwatch = storage.watch<boolean>('local:settings:debugMode', (newValue) => {
+          this._debugEnabled = newValue ?? false;
+        });
+      } catch {
+        // Watcher failed (likely CSP) - logger still works, just won't update live
+      }
     }
 
     this._initialized = true;

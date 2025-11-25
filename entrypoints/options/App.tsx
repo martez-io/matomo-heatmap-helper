@@ -6,10 +6,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Settings, Trash2, ShieldCheck, Bug } from 'lucide-react';
+import { Settings, Trash2, Bug, ArrowRightLeft, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { createMatomoClient } from '@/lib/matomo-api';
-import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites, getDebugMode, setDebugMode } from '@/lib/storage';
+import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites, getDebugMode, setDebugMode, getEnforceTracker, setEnforceTracker, getEnforcedDomainMappings, removeEnforcedDomainMapping, clearAllEnforcedMappings } from '@/lib/storage';
 import { CredentialsForm } from '@/entrypoints/options/CredentialsForm';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -31,22 +31,51 @@ export default function App() {
     } | null>(null);
     const [hasExistingCredentials, setHasExistingCredentials] = useState(false);
     const [debugModeEnabled, setDebugModeEnabled] = useState(false);
+    const [enforceTrackerEnabled, setEnforceTrackerEnabled] = useState(false);
+    const [enforcedDomains, setEnforcedDomains] = useState<Array<{ domain: string; siteId: number; siteName: string }>>([]);
 
     // Load existing credentials and settings on mount
     useEffect(() => {
         loadExistingCredentials();
         loadSettings();
+        loadEnforcedDomains();
     }, []);
 
     async function loadSettings() {
         const debugMode = await getDebugMode();
         setDebugModeEnabled(debugMode);
+
+        const enforceTracker = await getEnforceTracker();
+        setEnforceTrackerEnabled(enforceTracker);
     }
 
     async function handleDebugModeChange(enabled: boolean) {
         setDebugModeEnabled(enabled);
         await setDebugMode(enabled);
         toast.success(`Debug mode ${enabled ? 'enabled' : 'disabled'}`, { duration: 2000 });
+    }
+
+    async function handleEnforceTrackerChange(enabled: boolean) {
+        setEnforceTrackerEnabled(enabled);
+        await setEnforceTracker(enabled);
+        toast.success(`Enforce Matomo Tracker ${enabled ? 'enabled' : 'disabled'}`, { duration: 2000 });
+    }
+
+    async function loadEnforcedDomains() {
+        const domains = await getEnforcedDomainMappings();
+        setEnforcedDomains(domains);
+    }
+
+    async function handleRemoveEnforcedDomain(domain: string) {
+        await removeEnforcedDomainMapping(domain);
+        await loadEnforcedDomains();
+        toast.success(`Removed ${domain} from enforced list`, { duration: 2000 });
+    }
+
+    async function handleClearAllEnforcedDomains() {
+        await clearAllEnforcedMappings();
+        await loadEnforcedDomains();
+        toast.success('Cleared all enforced domain mappings', { duration: 2000 });
     }
 
     // Detect credential changes to re-enable validation button
@@ -190,7 +219,7 @@ export default function App() {
                             <Collapsible
                                 trigger={<span className="text-xs uppercase tracking-wide">Advanced Settings</span>}
                             >
-                                <div className="pt-3 pb-1">
+                                <div className="pt-3 pb-1 space-y-4">
                                     <label className="flex items-center justify-between gap-3 cursor-pointer group">
                                         <div className="flex items-center gap-3">
                                             <Bug className="h-4 w-4 text-muted-foreground" />
@@ -222,6 +251,88 @@ export default function App() {
                                             />
                                         </button>
                                     </label>
+
+                                    <Separator />
+
+                                    <label className="flex items-center justify-between gap-3 cursor-pointer group">
+                                        <div className="flex items-center gap-3">
+                                            <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                                            <div>
+                                                <p className="text-sm font-medium">Enforce Matomo Tracker</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Override any page's Matomo tracker with your configured instance for debugging
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={enforceTrackerEnabled}
+                                            onClick={() => handleEnforceTrackerChange(!enforceTrackerEnabled)}
+                                            className={`
+                                                relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full
+                                                transition-colors duration-200 ease-in-out focus-visible:outline-none
+                                                focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                                                ${enforceTrackerEnabled ? 'bg-primary' : 'bg-input'}
+                                            `}
+                                        >
+                                            <span
+                                                className={`
+                                                    pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg
+                                                    ring-0 transition-transform duration-200 ease-in-out
+                                                    ${enforceTrackerEnabled ? 'translate-x-4' : 'translate-x-0.5'}
+                                                `}
+                                            />
+                                        </button>
+                                    </label>
+
+                                    {/* Enforced Domains List */}
+                                    {enforceTrackerEnabled && (
+                                        <div className="mt-4 pt-4 border-t border-border">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-xs font-medium text-muted-foreground">
+                                                    Enforced Domains
+                                                </p>
+                                                {enforcedDomains.length > 0 && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={handleClearAllEnforcedDomains}
+                                                        className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                                                    >
+                                                        Clear all
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {enforcedDomains.length === 0 ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                    No domains are currently enforced. Visit a page and select a site to enforce.
+                                                </p>
+                                            ) : (
+                                                <ul className="space-y-1">
+                                                    {enforcedDomains.map(({ domain, siteName }) => (
+                                                        <li
+                                                            key={domain}
+                                                            className="flex items-center justify-between text-xs p-2 bg-muted rounded"
+                                                        >
+                                                            <span>
+                                                                <span className="font-medium">{domain}</span>
+                                                                <span className="text-muted-foreground ml-2">→ {siteName}</span>
+                                                            </span>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleRemoveEnforcedDomain(domain)}
+                                                                className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                                                            >
+                                                                <X className="h-3 w-3" />
+                                                            </Button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </Collapsible>
                         </CardContent>

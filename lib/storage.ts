@@ -3,7 +3,7 @@
  */
 
 import { storage } from 'wxt/utils/storage';
-import type { StorageSchema } from '@/types/storage';
+import type { StorageSchema, DomainSiteMapping } from '@/types/storage';
 
 /**
  * Get a value from storage with type safety
@@ -111,21 +111,42 @@ export async function getDomainSiteMapping(domain: string) {
 
 /**
  * Save domain-to-site mapping to cache
+ * Note: Non-enforced mappings will NOT overwrite existing enforced mappings
  */
 export async function saveDomainSiteMapping(
   domain: string,
   siteId: number,
-  siteName: string
+  siteName: string,
+  isEnforced: boolean = false
 ) {
   const domainMap = (await getStorage('matomo:domainSiteMap')) || {};
+
+  // Don't overwrite enforced mappings with non-enforced ones
+  const existingMapping = domainMap[domain];
+  if (existingMapping?.isEnforced && !isEnforced) {
+    return; // Preserve the enforced mapping
+  }
 
   domainMap[domain] = {
     siteId,
     siteName,
     timestamp: Date.now(),
+    isEnforced,
   };
 
   await setStorage('matomo:domainSiteMap', domainMap);
+}
+
+/**
+ * Get all domains that have enforced mappings
+ */
+export async function getEnforcedDomains(): Promise<string[]> {
+  const domainMap = await getStorage('matomo:domainSiteMap');
+  if (!domainMap) return [];
+
+  return Object.entries(domainMap)
+    .filter(([_, mapping]) => mapping.isEnforced === true)
+    .map(([domain]) => domain);
 }
 
 /**
@@ -176,4 +197,66 @@ export async function getDebugMode(): Promise<boolean> {
  */
 export async function setDebugMode(enabled: boolean): Promise<void> {
   await setStorage('settings:debugMode', enabled);
+}
+
+/**
+ * Get enforce tracker setting (defaults to false)
+ */
+export async function getEnforceTracker(): Promise<boolean> {
+  const value = await getStorage('enforce:enabled');
+  return value ?? false;
+}
+
+/**
+ * Set enforce tracker setting
+ */
+export async function setEnforceTracker(enabled: boolean): Promise<void> {
+  await setStorage('enforce:enabled', enabled);
+}
+
+/**
+ * Get all enforced domain mappings with full details
+ */
+export async function getEnforcedDomainMappings(): Promise<Array<{
+  domain: string;
+  siteId: number;
+  siteName: string;
+}>> {
+  const domainMap = await getStorage('matomo:domainSiteMap');
+  if (!domainMap) return [];
+
+  return Object.entries(domainMap)
+    .filter(([_, mapping]) => mapping.isEnforced === true)
+    .map(([domain, mapping]) => ({
+      domain,
+      siteId: mapping.siteId,
+      siteName: mapping.siteName,
+    }));
+}
+
+/**
+ * Remove a single enforced domain mapping
+ */
+export async function removeEnforcedDomainMapping(domain: string): Promise<void> {
+  const domainMap = (await getStorage('matomo:domainSiteMap')) || {};
+  if (domainMap[domain]) {
+    delete domainMap[domain];
+    await setStorage('matomo:domainSiteMap', domainMap);
+  }
+}
+
+/**
+ * Clear all enforced domain mappings (keeps non-enforced/auto-matched ones)
+ */
+export async function clearAllEnforcedMappings(): Promise<void> {
+  const domainMap = (await getStorage('matomo:domainSiteMap')) || {};
+  const nonEnforcedMap: Record<string, DomainSiteMapping> = {};
+
+  for (const [domain, mapping] of Object.entries(domainMap)) {
+    if (!mapping.isEnforced) {
+      nonEnforcedMap[domain] = mapping;
+    }
+  }
+
+  await setStorage('matomo:domainSiteMap', nonEnforcedMap);
 }

@@ -5,10 +5,11 @@
 import { useState, useEffect } from 'react';
 import { browser } from 'wxt/browser';
 import { Settings, Bug, Loader2 } from 'lucide-react';
-import { getStorage, setStorage, getCredentials } from '@/lib/storage';
+import { getStorage, setStorage, getCredentials, getAvailableSites, saveDomainSiteMapping } from '@/lib/storage';
 import { generateBugReportUrl } from '@/lib/github-issue';
 import { getCurrentTab } from '@/lib/messaging';
-import { resolveSiteForCurrentTab, type ResolutionResult } from '@/lib/site-resolver';
+import { resolveSiteForCurrentTab, extractDomain, type ResolutionResult } from '@/lib/site-resolver';
+import { createMatomoClient } from '@/lib/matomo-api';
 import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,8 +17,10 @@ import { SiteNotFound } from './SiteNotFound';
 import { Unconfigured } from './Unconfigured';
 import { NoPermission } from './NoPermission';
 import { ControlCenter } from './ControlCenter';
+import { SiteSelector } from './SiteSelector';
+import type { MatomoSite } from '@/types/matomo';
 
-type PopupState = 'loading' | 'unconfigured' | 'no-site' | 'no-permission' | 'ready';
+type PopupState = 'loading' | 'unconfigured' | 'no-site' | 'no-permission' | 'site-selection' | 'ready';
 
 interface SiteInfo {
     siteId: number;
@@ -30,15 +33,20 @@ export default function App() {
     const [currentUrl, setCurrentUrl] = useState('');
     const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
     const [isRetrying, setIsRetrying] = useState(false);
+    const [availableSites, setAvailableSites] = useState<MatomoSite[]>([]);
+    const [defaultSiteId, setDefaultSiteId] = useState<number | undefined>(undefined);
+    const [isFetchingSites, setIsFetchingSites] = useState(false);
 
     async function initialize() {
         setState('loading');
         await logger.init();
 
         // Get current URL for display
+        let tabUrl = '';
         try {
             const tab = await getCurrentTab();
-            setCurrentUrl(tab?.url || '');
+            tabUrl = tab?.url || '';
+            setCurrentUrl(tabUrl);
         } catch (err) {
             logger.warn('Popup', 'Could not get current tab:', err);
         }
@@ -54,29 +62,86 @@ export default function App() {
         const barVisible = await getStorage('state:barVisible');
         setBarEnabled(barVisible === true);
 
-        // Resolve site for current tab
+        // Check if enforce mode is enabled
+        const enforceEnabled = await getStorage('enforce:enabled');
+        logger.debug('Popup', 'Enforce mode:', enforceEnabled);
+
+        // Pre-fetch sites if enforce mode is enabled (to avoid duplicate API calls)
+        let sitesForSelector: MatomoSite[] | null = null;
+        if (enforceEnabled) {
+            setIsFetchingSites(true);
+            try {
+                sitesForSelector = await getAvailableSites();
+                if (!sitesForSelector || sitesForSelector.length === 0) {
+                    const client = createMatomoClient(creds.apiUrl, creds.authToken);
+                    sitesForSelector = await client.getSitesWithWriteAccess();
+                }
+            } catch (fetchErr) {
+                logger.error('Popup', 'Failed to pre-fetch sites:', fetchErr);
+            }
+            setIsFetchingSites(false);
+        }
+
+        // Try normal auto-resolution first (both modes)
         try {
             const result: ResolutionResult = await resolveSiteForCurrentTab();
 
-            if (!result.success) {
-                logger.debug('Popup', 'Site resolution failed:', result.error);
-                if (result.error === 'no-credentials') {
-                    setState('unconfigured');
-                } else if (result.error === 'no-permission') {
-                    setState('no-permission');
-                } else {
-                    setState('no-site');
+            if (result.success) {
+                // Auto-resolution succeeded - use this site
+                logger.debug('Popup', 'Site auto-resolved:', result.siteId, result.siteName);
+
+                // Save as non-enforced domain mapping
+                const domain = extractDomain(tabUrl);
+                if (domain) {
+                    await saveDomainSiteMapping(domain, result.siteId, result.siteName, false);
                 }
+
+                setSiteInfo({
+                    siteId: result.siteId,
+                    siteName: result.siteName,
+                });
+                setState('ready');
                 return;
             }
 
-            setSiteInfo({
-                siteId: result.siteId,
-                siteName: result.siteName,
-            });
-            setState('ready');
+            // Auto-resolution failed
+            logger.debug('Popup', 'Site resolution failed:', result.error);
+
+            // Handle based on enforce mode
+            if (enforceEnabled && sitesForSelector && sitesForSelector.length > 0) {
+                // Enforce mode ON + auto-resolve failed → show site selector
+                logger.debug('Popup', 'Enforce mode enabled, showing site selector');
+                setAvailableSites(sitesForSelector);
+                setDefaultSiteId(sitesForSelector[0].idsite);
+                setState('site-selection');
+                return;
+            }
+
+            if (enforceEnabled && (!sitesForSelector || sitesForSelector.length === 0)) {
+                logger.error('Popup', 'No sites available');
+                setState('no-permission');
+                return;
+            }
+
+            // Enforce mode OFF + auto-resolve failed → show appropriate error
+            if (result.error === 'no-credentials') {
+                setState('unconfigured');
+            } else if (result.error === 'no-permission') {
+                setState('no-permission');
+            } else {
+                setState('no-site');
+            }
         } catch (err) {
             logger.error('Popup', 'Site resolution error:', err);
+
+            if (enforceEnabled && sitesForSelector && sitesForSelector.length > 0) {
+                // Enforce mode ON + error → show site selector with pre-fetched sites
+                setAvailableSites(sitesForSelector);
+                setDefaultSiteId(sitesForSelector[0].idsite);
+                setState('site-selection');
+                return;
+            }
+
             setState('no-site');
         }
     }
@@ -89,6 +154,30 @@ export default function App() {
         setIsRetrying(true);
         await initialize();
         setIsRetrying(false);
+    }
+
+    async function handleSiteSelection(siteId: number, siteName: string) {
+        logger.debug('Popup', 'User selected site:', siteId, siteName);
+
+        // Save as enforced domain mapping
+        const domain = extractDomain(currentUrl);
+        if (domain) {
+            await saveDomainSiteMapping(domain, siteId, siteName, true);
+            logger.debug('Popup', 'Saved enforced mapping for domain:', domain);
+        }
+
+        setSiteInfo({ siteId, siteName });
+        setState('ready');
+
+        // Reload tab to apply enforced tracker
+        try {
+            const tab = await getCurrentTab();
+            if (tab?.id) {
+                await browser.tabs.reload(tab.id);
+            }
+        } catch (err) {
+            logger.warn('Popup', 'Could not reload tab:', err);
+        }
     }
 
     async function toggleBar(checked: boolean) {
@@ -162,6 +251,15 @@ export default function App() {
                         handleRetry={handleRetry}
                         isRetrying={isRetrying}
                         openSettings={openSettings}
+                    />
+                );
+            case 'site-selection':
+                return (
+                    <SiteSelector
+                        sites={availableSites}
+                        defaultSiteId={defaultSiteId}
+                        onSelect={handleSiteSelection}
+                        isLoading={isFetchingSites}
                     />
                 );
             case 'ready':

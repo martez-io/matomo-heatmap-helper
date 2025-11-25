@@ -7,7 +7,7 @@
 import { browser } from 'wxt/browser';
 import { getStorage, setStorage, getCredentials } from '@/lib/storage';
 import { createMatomoClient, type MatomoApiClient } from '@/lib/matomo-api';
-import { sendToContentScript, triggerMatomoScreenshot } from '@/lib/messaging';
+import { sendToContentScript, triggerMatomoScreenshot, cleanAndInjectTracker, waitForMatomoReady } from '@/lib/messaging';
 import { logger } from '@/lib/logger';
 import type { ProcessingStep, ScreenshotProgress } from '@/types/storage';
 
@@ -44,6 +44,12 @@ export class ScreenshotStateMachine {
    * Start a new screenshot process
    */
   async start(params: { heatmapId: number; tabId: number; siteId: number }): Promise<void> {
+    // Auto-reset if stuck in error or complete state
+    if (this.currentState === 'error' || this.currentState === 'complete') {
+      logger.debug('StateMachine', `Resetting from ${this.currentState} to idle`);
+      await this.reset();
+    }
+
     if (this.currentState !== 'idle') {
       throw new Error(`Cannot start: current state is ${this.currentState}`);
     }
@@ -201,6 +207,48 @@ export class ScreenshotStateMachine {
     logger.debug('StateMachine', 'Capturing screenshot...');
 
     if (!this.context) return;
+
+    // Check if enforcement is enabled
+    const enforceEnabled = await getStorage('enforce:enabled');
+
+    if (enforceEnabled) {
+      logger.debug('StateMachine', 'Enforce mode enabled, injecting tracker...');
+
+      const creds = await getCredentials();
+      if (!creds || !creds.apiUrl) {
+        throw new Error('Missing Matomo API URL for enforced tracker');
+      }
+
+      const siteId = this.context.siteId;
+      if (!siteId) {
+        throw new Error('Missing site ID for enforced tracker');
+      }
+
+      // STEP 1: Clean and inject enforced tracker
+      const injectResult = await cleanAndInjectTracker(
+        this.context.tabId,
+        creds.apiUrl,
+        siteId
+      );
+
+      if (!injectResult.success) {
+        throw new Error(`Failed to inject enforced tracker: ${injectResult.error}`);
+      }
+
+      logger.debug('StateMachine', 'Enforced tracker injected, waiting for Matomo to load...');
+
+      // STEP 2: Wait for Matomo and HeatmapSessionRecording to load
+      const readyResult = await waitForMatomoReady(this.context.tabId, 10000);
+
+      if (!readyResult.success) {
+        throw new Error(
+          readyResult.error ||
+          'Timeout waiting for Matomo to load. Ensure the Heatmap plugin is installed on your instance.'
+        );
+      }
+
+      logger.debug('StateMachine', 'Matomo ready, proceeding with screenshot capture');
+    }
 
     // Execute Matomo API call in page context
     const result = await triggerMatomoScreenshot(

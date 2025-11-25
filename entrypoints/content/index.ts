@@ -21,7 +21,7 @@ export default defineContentScript({
   runAt: 'document_idle',
 
   async main() {
-    await logger.init();
+    await logger.init(true); // Skip watcher to avoid CSP violations
     logger.debug('Content', 'Content script loaded');
 
     // Inject styles immediately so lock indicators work

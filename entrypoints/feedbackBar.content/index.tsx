@@ -20,7 +20,7 @@ export default defineContentScript({
         const params = new URLSearchParams(window.location.search);
         if (params.get('mhh_success') !== '1') return;
 
-        await logger.init();
+        await logger.init(true); // Skip watcher to avoid CSP violations
         logger.debug('FeedbackBar', 'Success params detected');
 
         // 2. Validate timestamp (30s expiry prevents stale bookmarks/refreshes)

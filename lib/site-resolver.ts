@@ -10,6 +10,7 @@ import {
   getAvailableSites,
   saveAvailableSites,
   getCredentials,
+  getEnforceTracker,
 } from './storage';
 import type { MatomoSite } from '@/types/matomo';
 import { logger } from './logger';
@@ -21,12 +22,11 @@ export type ResolutionResult =
 /**
  * Extract domain from URL (e.g., "https://example.com/path" -> "example.com")
  */
-function extractDomain(url: string): string {
+export function extractDomain(url: string): string | null {
   try {
-    const urlObj = new URL(url);
-    return urlObj.hostname;
+    return new URL(url).hostname;
   } catch {
-    return '';
+    return null;
   }
 }
 
@@ -56,12 +56,19 @@ async function resolveForDomain(
   // Check if domain is already cached
   const cachedMapping = await getDomainSiteMapping(domain);
   if (cachedMapping) {
-    logger.debug('SiteResolver', 'Using cached mapping:', cachedMapping);
-    return {
-      success: true,
-      siteId: cachedMapping.siteId,
-      siteName: cachedMapping.siteName,
-    };
+    // Skip enforced mappings when enforce mode is OFF
+    const enforceEnabled = await getEnforceTracker();
+    if (cachedMapping.isEnforced && !enforceEnabled) {
+      logger.debug('SiteResolver', 'Skipping enforced mapping (enforce mode is OFF):', cachedMapping);
+      // Continue to normal resolution below
+    } else {
+      logger.debug('SiteResolver', 'Using cached mapping:', cachedMapping);
+      return {
+        success: true,
+        siteId: cachedMapping.siteId,
+        siteName: cachedMapping.siteName,
+      };
+    }
   }
 
   try {
@@ -147,7 +154,7 @@ export async function resolveSiteForCurrentTab(): Promise<ResolutionResult> {
   }
 
   const domain = extractDomain(currentTab.url);
-  if (!domain) {
+  if (domain === null) {
     logger.error('SiteResolver', 'Could not extract domain from URL:', currentTab.url);
     return { success: false, error: 'no-site' };
   }
@@ -173,7 +180,7 @@ export async function resolveSiteForUrl(url: string): Promise<ResolutionResult> 
   }
 
   const domain = extractDomain(url);
-  if (!domain) {
+  if (domain === null) {
     logger.error('SiteResolver', 'Could not extract domain from URL:', url);
     return { success: false, error: 'no-site' };
   }
