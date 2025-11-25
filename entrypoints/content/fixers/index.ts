@@ -38,3 +38,4 @@ import './base/position-fixer';
 import './specialized/iframe-fixer';
 import './specialized/sticky-header-fixer';
 import './specialized/video-fixer';
+import './specialized/cors-fixer';

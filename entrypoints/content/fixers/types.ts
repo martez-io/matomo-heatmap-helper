@@ -24,6 +24,9 @@ export interface FixerResult {
 
 /**
  * Base interface all fixers must implement
+ *
+ * Fixers can be sync or async - apply() can return either
+ * FixerResult directly or a Promise<FixerResult>.
  */
 export interface Fixer {
   /** Unique identifier for this fixer */
@@ -38,9 +41,10 @@ export interface Fixer {
   shouldApply(context: FixerContext): boolean;
 
   /**
-   * Apply the fix and return self-contained restoration data
+   * Apply the fix and return self-contained restoration data.
+   * Can be sync or async - return Promise for async operations.
    */
-  apply(context: FixerContext): FixerResult;
+  apply(context: FixerContext): FixerResult | Promise<FixerResult>;
 }
 
 /**

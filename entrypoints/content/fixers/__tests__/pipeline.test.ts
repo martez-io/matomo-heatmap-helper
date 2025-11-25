@@ -6,14 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { applyFixers } from '../pipeline';
 import { fixerRegistry } from '../registry';
 import type { Fixer, ComposableFixer } from '../types';
-import {
-  createElement,
-  createScrollableElement,
-  createStickyHeader,
-  createIframe,
-  createVideoElement,
-  cleanup,
-} from './test-utils';
+import { createElement, createScrollableElement, cleanup } from './test-utils';
 
 // Mock the logger to avoid import issues
 vi.mock('@/lib/logger', () => ({
@@ -38,27 +31,27 @@ describe('Pipeline', () => {
   });
 
   describe('applyFixers', () => {
-    it('should return ElementFixResult with element reference', () => {
+    it('should return ElementFixResult with element reference', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
 
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
 
       expect(result.element).toBe(element);
     });
 
-    it('should return timestamp', () => {
+    it('should return timestamp', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
       const before = Date.now();
 
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
 
       expect(result.timestamp).toBeGreaterThanOrEqual(before);
       expect(result.timestamp).toBeLessThanOrEqual(Date.now());
     });
 
-    it('should return empty appliedFixers when no fixers match', () => {
+    it('should return empty appliedFixers when no fixers match', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
 
@@ -71,13 +64,13 @@ describe('Pipeline', () => {
       };
       fixerRegistry.register(fixer);
 
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
 
       expect(result.appliedFixers).toHaveLength(0);
       expect(fixer.apply).not.toHaveBeenCalled();
     });
 
-    it('should apply fixers in priority order (lower first)', () => {
+    it('should apply fixers in priority order (lower first)', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
       const callOrder: string[] = [];
@@ -116,12 +109,12 @@ describe('Pipeline', () => {
       fixerRegistry.register(fixer2);
       fixerRegistry.register(fixer3);
 
-      applyFixers(element);
+      await applyFixers(element);
 
       expect(callOrder).toEqual(['low', 'medium', 'high']);
     });
 
-    it('should skip base fixers that are composed by specialized fixers', () => {
+    it('should skip base fixers that are composed by specialized fixers', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
 
@@ -151,7 +144,7 @@ describe('Pipeline', () => {
       fixerRegistry.register(baseFixer);
       fixerRegistry.register(specializedFixer);
 
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
 
       expect(specializedFixer.apply).toHaveBeenCalled();
       expect(baseFixer.apply).not.toHaveBeenCalled();
@@ -159,7 +152,7 @@ describe('Pipeline', () => {
       expect(result.appliedFixers[0].fixerId).toBe('specialized:test');
     });
 
-    it('should apply base fixers not composed by any specialized fixer', () => {
+    it('should apply base fixers not composed by any specialized fixer', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
 
@@ -201,7 +194,7 @@ describe('Pipeline', () => {
       fixerRegistry.register(baseFixer2);
       fixerRegistry.register(specializedFixer);
 
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
 
       expect(specializedFixer.apply).toHaveBeenCalled();
       expect(baseFixer1.apply).not.toHaveBeenCalled();
@@ -209,7 +202,7 @@ describe('Pipeline', () => {
       expect(result.appliedFixers).toHaveLength(2);
     });
 
-    it('should not apply specialized fixer if shouldApply returns false', () => {
+    it('should not apply specialized fixer if shouldApply returns false', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
 
@@ -235,7 +228,7 @@ describe('Pipeline', () => {
       fixerRegistry.register(baseFixer);
       fixerRegistry.register(specializedFixer);
 
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
 
       // Specialized doesn't apply, so base should run
       expect(specializedFixer.apply).not.toHaveBeenCalled();
@@ -244,7 +237,7 @@ describe('Pipeline', () => {
       expect(result.appliedFixers[0].fixerId).toBe('base:test');
     });
 
-    it('should handle errors in fixer apply gracefully', () => {
+    it('should handle errors in fixer apply gracefully', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
 
@@ -272,7 +265,7 @@ describe('Pipeline', () => {
       fixerRegistry.register(goodFixer);
 
       // Should not throw
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
 
       // Good fixer should still be applied
       expect(result.appliedFixers).toHaveLength(1);
@@ -281,7 +274,7 @@ describe('Pipeline', () => {
   });
 
   describe('restoreAll', () => {
-    it('should restore fixers in reverse order', () => {
+    it('should restore fixers in reverse order', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
       const restoreOrder: string[] = [];
@@ -323,14 +316,14 @@ describe('Pipeline', () => {
       fixerRegistry.register(fixer2);
       fixerRegistry.register(fixer3);
 
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
       result.restoreAll();
 
       // Should restore in reverse order (last applied first)
       expect(restoreOrder).toEqual(['third', 'second', 'first']);
     });
 
-    it('should handle errors in restore gracefully', () => {
+    it('should handle errors in restore gracefully', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
       const restoreOrder: string[] = [];
@@ -362,7 +355,7 @@ describe('Pipeline', () => {
       fixerRegistry.register(errorFixer);
       fixerRegistry.register(goodFixer);
 
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
 
       // Should not throw
       expect(() => result.restoreAll()).not.toThrow();
@@ -390,12 +383,12 @@ describe('Pipeline', () => {
       });
       document.body.appendChild(element);
 
-      const result = applyFixers(element);
+      const result = await applyFixers(element);
 
       // Both height and overflow should apply
       expect(result.appliedFixers.length).toBeGreaterThanOrEqual(2);
 
-      const fixerIds = result.appliedFixers.map((f) => f.fixerId);
+      const fixerIds = result.appliedFixers.map((f: { fixerId: string }) => f.fixerId);
       expect(fixerIds).toContain('base:height');
       expect(fixerIds).toContain('base:overflow');
     });

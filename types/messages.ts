@@ -49,6 +49,25 @@ export type ContentScriptResponse =
   | ScrollTrackerStatus
   | LockedElementsStatus;
 
+// CORS resource types for cross-origin resource handling
+export type CorsResourceType = 'image' | 'font' | 'svg';
+
+export interface CorsResourceRequest {
+  id: string;
+  url: string;
+  resourceType: CorsResourceType;
+}
+
+export interface CorsResourceResult {
+  id: string;
+  url: string;
+  success: boolean;
+  dataUri?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  error?: string;
+}
+
 // Background worker messages
 export type BackgroundMessage =
   | { action: 'onSuccessfulScreenshot'; url: string; tabId: number }
@@ -57,7 +76,8 @@ export type BackgroundMessage =
   | { action: 'fetchHeatmaps'; siteId: number; forceRefresh?: boolean }
   | { action: 'resolveSite'; url: string }
   | { action: 'openSettings' }
-  | { action: 'openBugReport' };
+  | { action: 'openBugReport' }
+  | { action: 'fetchCorsResources'; requests: CorsResourceRequest[] };
 
 export type BackgroundResponse = {
   success: boolean;
@@ -66,6 +86,9 @@ export type BackgroundResponse = {
   // Site resolution fields
   siteId?: number;
   siteName?: string;
+  // CORS resource fetching fields
+  corsResults?: CorsResourceResult[];
+  totalSizeBytes?: number;
 };
 
 // Page context messages (for Matomo API calls)

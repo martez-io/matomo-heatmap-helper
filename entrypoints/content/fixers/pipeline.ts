@@ -3,6 +3,7 @@
  */
 
 import type { FixerContext, ElementFixResult, FixerResult } from './types';
+import { isComposableFixer } from './types';
 import { fixerRegistry } from './registry';
 import { logger } from '@/lib/logger';
 
@@ -10,12 +11,13 @@ import { logger } from '@/lib/logger';
  * Execute the fixer pipeline on an element
  *
  * Pipeline logic:
- * 1. First, check specialized fixers - they may supersede base fixers
- * 2. For each specialized fixer that applies, mark its composed fixers as handled
- * 3. Run remaining base fixers not already handled by specialized fixers
- * 4. Collect all results for restoration
+ * 1. First, run composable (specialized) fixers - they can supersede base fixers
+ * 2. Then run remaining fixers, skipping any superseded by composable fixers
+ * 3. Within each phase, run in priority order (lower first)
+ *
+ * Fixers can be sync or async - we use `await Promise.resolve()` to handle both uniformly.
  */
-export function applyFixers(element: HTMLElement): ElementFixResult {
+export async function applyFixers(element: HTMLElement): Promise<ElementFixResult> {
   const computedStyle = window.getComputedStyle(element);
 
   const context: FixerContext = {
@@ -29,19 +31,22 @@ export function applyFixers(element: HTMLElement): ElementFixResult {
   const appliedFixers: FixerResult[] = [];
   const handledFixerIds = new Set<string>();
 
-  // Phase 1: Run specialized fixers that match
-  const specializedFixers = fixerRegistry.getSpecializedFixers();
+  const allFixers = fixerRegistry.getAllSorted();
 
-  for (const fixer of specializedFixers) {
+  // Phase 1: Run composable fixers first (they can supersede base fixers)
+  for (const fixer of allFixers) {
+    if (!isComposableFixer(fixer)) continue;
+
     if (fixer.shouldApply(context)) {
       try {
-        const result = fixer.apply(context);
+        const result = await Promise.resolve(fixer.apply(context));
+
         if (result.applied) {
           appliedFixers.push(result);
           handledFixerIds.add(fixer.id);
-          // Mark composed base fixers as handled (prevents double-application)
+          // Mark composed base fixers as handled
           fixer.composesFixers.forEach((id) => handledFixerIds.add(id));
-          logger.debug('Content', `Applied specialized fixer: ${fixer.id}`);
+          logger.debug('Content', `Applied fixer: ${fixer.id}`);
         }
       } catch (err) {
         logger.error('Content', `Error applying fixer ${fixer.id}:`, err);
@@ -49,21 +54,19 @@ export function applyFixers(element: HTMLElement): ElementFixResult {
     }
   }
 
-  // Phase 2: Run base fixers not already handled by specialized fixers
-  const baseFixers = fixerRegistry.getBaseFixers();
-
-  for (const fixer of baseFixers) {
-    if (handledFixerIds.has(fixer.id)) {
-      continue; // Already handled by a specialized fixer
-    }
+  // Phase 2: Run remaining fixers (skip if already handled)
+  for (const fixer of allFixers) {
+    if (handledFixerIds.has(fixer.id)) continue;
+    if (isComposableFixer(fixer)) continue; // Already processed
 
     if (fixer.shouldApply(context)) {
       try {
-        const result = fixer.apply(context);
+        const result = await Promise.resolve(fixer.apply(context));
+
         if (result.applied) {
           appliedFixers.push(result);
           handledFixerIds.add(fixer.id);
-          logger.debug('Content', `Applied base fixer: ${fixer.id}`);
+          logger.debug('Content', `Applied fixer: ${fixer.id}`);
         }
       } catch (err) {
         logger.error('Content', `Error applying fixer ${fixer.id}:`, err);

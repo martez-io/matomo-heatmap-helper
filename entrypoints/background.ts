@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { ScreenshotStateMachine } from './background/ScreenshotStateMachine';
+import { fetchCorsResources } from './background/cors-fetcher';
 import { getStorage, getCredentials, setStorage } from '@/lib/storage';
 import { createMatomoClient } from '@/lib/matomo-api';
 import { resolveSiteForUrl } from '@/lib/site-resolver';
@@ -89,6 +90,9 @@ async function handleMessage(
 
     case 'openBugReport':
       return await handleOpenBugReport();
+
+    case 'fetchCorsResources':
+      return await handleFetchCorsResources(message.requests);
 
     default:
       return { success: false, error: 'Unknown action' };
@@ -226,6 +230,28 @@ async function handleOpenBugReport(): Promise<BackgroundResponse> {
     return { success: true, tabId: tab.id };
   } catch (error) {
     logger.error('Background', 'Failed to open bug report:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+async function handleFetchCorsResources(
+  requests: import('@/types/messages').CorsResourceRequest[]
+): Promise<BackgroundResponse> {
+  try {
+    logger.debug('Background', 'Fetching CORS resources:', requests.length);
+
+    const { results, totalSizeBytes } = await fetchCorsResources(requests);
+
+    return {
+      success: true,
+      corsResults: results,
+      totalSizeBytes,
+    };
+  } catch (error) {
+    logger.error('Background', 'Failed to fetch CORS resources:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

@@ -44,9 +44,9 @@ async function syncStateToStorage(): Promise<void> {
 /**
  * Lock an element using the fixer pipeline
  */
-function lockElement(element: HTMLElement): void {
-  // Apply all relevant fixers via pipeline
-  const fixResult = applyFixers(element);
+async function lockElement(element: HTMLElement): Promise<void> {
+  // Apply all relevant fixers via pipeline (async for CORS and other async fixers)
+  const fixResult = await applyFixers(element);
   storeFixResult(element, fixResult);
 
   // Apply visual lock indicator (separate from fixers)
@@ -236,26 +236,34 @@ function handleInteractiveClick(event: MouseEvent): void {
   }
 
   // Prevent default behavior ONLY for page elements (not persistent bar)
+  // These must be called synchronously before any async operations
   event.preventDefault();
   event.stopPropagation();
 
-  // Toggle lock state
-  if (ScrollTracker.lockedElements.has(element)) {
-    // Unlock
-    unlockElement(element);
-  } else {
-    // Lock
-    lockElement(element);
-  }
+  // Toggle lock state (async operation)
+  const toggleLock = async () => {
+    if (ScrollTracker.lockedElements.has(element)) {
+      // Unlock (synchronous)
+      unlockElement(element);
+    } else {
+      // Lock (async - may fetch CORS resources)
+      await lockElement(element);
+    }
 
-  // Sync state to storage
-  syncStateToStorage();
+    // Sync state to storage
+    await syncStateToStorage();
 
-  // Notify persistent bar
-  dispatchStatusUpdate();
+    // Notify persistent bar
+    dispatchStatusUpdate();
 
-  // Trigger hover event to update visual feedback
-  handleInteractiveHover(event);
+    // Trigger hover event to update visual feedback
+    handleInteractiveHover(event);
+  };
+
+  // Execute async operation (errors logged internally by fixers)
+  toggleLock().catch((err) => {
+    logger.error('Content', 'Error toggling element lock:', err);
+  });
 }
 
 /**
