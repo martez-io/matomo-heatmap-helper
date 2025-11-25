@@ -9,6 +9,9 @@
         "dev:firefox": "wxt --browser firefox",
         "build": "wxt build",
         "build:firefox": "wxt build --browser firefox",
+        "test": "vitest",
+        "test:run": "vitest run",
+        "test:coverage": "vitest run --coverage",
         "test:firefox": "npm run build:firefox && echo '\nFirefox build complete. Load from: dist/firefox-mv3'",
         "zip": "wxt zip",
         "zip:firefox": "wxt zip --browser firefox"
@@ -23,11 +26,14 @@
         "@types/canvas-confetti": "^1.9.0",
         "@types/react": "^19.2.2",
         "@types/react-dom": "^19.2.2",
+        "@vitest/coverage-v8": "^3.2.4",
         "@wxt-dev/module-react": "^1.1.5",
         "autoprefixer": "^10.4.21",
+        "happy-dom": "^20.0.10",
         "postcss": "^8.5.6",
         "tailwindcss": "^4.1.16",
         "typescript": "^5.9.3",
+        "vitest": "^3.2.4",
         "wxt": "^0.20.11"
     },
     "dependencies": {

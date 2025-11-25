@@ -42,3 +42,6 @@ pnpm-debug.log*
 # Optional: TypeScript
 *.tsbuildinfo
 wxt-docs/
+
+# Test Coverage
+coverage/
