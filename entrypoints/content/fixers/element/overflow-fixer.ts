@@ -9,8 +9,9 @@ import type { Fixer, FixerContext, FixerResult } from '../types';
 import { fixerRegistry } from '../registry';
 
 export const overflowFixer: Fixer = {
-  id: 'base:overflow',
+  id: 'element:overflow',
   priority: 20,
+  scope: 'element',
 
   shouldApply(context: FixerContext): boolean {
     const { computedStyle } = context;
@@ -38,7 +39,7 @@ export const overflowFixer: Fixer = {
     element.style.overflowY = 'visible';
 
     return {
-      fixerId: 'base:overflow',
+      fixerId: 'element:overflow',
       applied: true,
       restore() {
         element.style.overflow = originalOverflow;

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { overflowFixer } from '../../base/overflow-fixer';
+import { overflowFixer } from '../../element/overflow-fixer';
 import { createElement, createFixerContext, cleanup } from '../test-utils';
 
 describe('OverflowFixer', () => {
@@ -13,11 +13,15 @@ describe('OverflowFixer', () => {
 
   describe('metadata', () => {
     it('should have correct ID', () => {
-      expect(overflowFixer.id).toBe('base:overflow');
+      expect(overflowFixer.id).toBe('element:overflow');
     });
 
     it('should have priority 20', () => {
       expect(overflowFixer.priority).toBe(20);
+    });
+
+    it('should have element scope', () => {
+      expect(overflowFixer.scope).toBe('element');
     });
   });
 
@@ -107,7 +111,7 @@ describe('OverflowFixer', () => {
       const result = overflowFixer.apply(context);
 
       expect(result.applied).toBe(true);
-      expect(result.fixerId).toBe('base:overflow');
+      expect(result.fixerId).toBe('element:overflow');
     });
   });
 

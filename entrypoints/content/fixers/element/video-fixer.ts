@@ -10,9 +10,10 @@ import type { ComposableFixer, FixerContext, FixerResult } from '../types';
 import { fixerRegistry } from '../registry';
 
 export const videoFixer: ComposableFixer = {
-  id: 'specialized:video',
+  id: 'element:video',
   priority: 120,
-  composesFixers: ['base:height'],
+  scope: 'element',
+  composesFixers: ['element:height'],
 
   shouldApply(context: FixerContext): boolean {
     const tagName = context.element.tagName.toLowerCase();
@@ -35,7 +36,7 @@ export const videoFixer: ComposableFixer = {
     }
 
     return {
-      fixerId: 'specialized:video',
+      fixerId: 'element:video',
       applied: true,
       restore() {
         media.currentTime = originalCurrentTime;

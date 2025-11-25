@@ -188,9 +188,9 @@ export class ScreenshotStateMachine {
     // Show scanner animation
     await sendToContentScript(this.context.tabId, { action: 'showScanner' });
 
-    // Trigger expansion
+    // Trigger layout preparation
     const response = await sendToContentScript(this.context.tabId, {
-      action: 'expandElements',
+      action: 'prepareLayout',
     });
 
     if (!('success' in response) || !response.success) {
@@ -294,7 +294,7 @@ export class ScreenshotStateMachine {
     if (!this.context) return;
 
     try {
-      await sendToContentScript(this.context.tabId, { action: 'restore' });
+      await sendToContentScript(this.context.tabId, { action: 'restoreLayout' });
     } catch (err) {
       logger.warn('StateMachine', 'Restore failed (tab may be closed):', err);
     }
@@ -409,7 +409,7 @@ export class ScreenshotStateMachine {
     // Attempt cleanup
     if (this.context?.tabId) {
       try {
-        await sendToContentScript(this.context.tabId, { action: 'restore' });
+        await sendToContentScript(this.context.tabId, { action: 'restoreLayout' });
         await sendToContentScript(this.context.tabId, { action: 'hideScanner' });
       } catch (err) {
         logger.warn('StateMachine', 'Cleanup failed:', err);

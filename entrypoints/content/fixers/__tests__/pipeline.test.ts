@@ -59,6 +59,7 @@ describe('Pipeline', () => {
       const fixer: Fixer = {
         id: 'test:no-match',
         priority: 10,
+        scope: 'element',
         shouldApply: () => false,
         apply: vi.fn(),
       };
@@ -78,6 +79,7 @@ describe('Pipeline', () => {
       const fixer1: Fixer = {
         id: 'test:high',
         priority: 30,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => {
           callOrder.push('high');
@@ -88,6 +90,7 @@ describe('Pipeline', () => {
       const fixer2: Fixer = {
         id: 'test:low',
         priority: 10,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => {
           callOrder.push('low');
@@ -98,6 +101,7 @@ describe('Pipeline', () => {
       const fixer3: Fixer = {
         id: 'test:medium',
         priority: 20,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => {
           callOrder.push('medium');
@@ -114,77 +118,82 @@ describe('Pipeline', () => {
       expect(callOrder).toEqual(['low', 'medium', 'high']);
     });
 
-    it('should skip base fixers that are composed by specialized fixers', async () => {
+    it('should skip element fixers that are composed by composable fixers', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
 
       const baseFixer: Fixer = {
-        id: 'base:test',
+        id: 'element:test',
         priority: 10,
+        scope: 'element',
         shouldApply: () => true,
         apply: vi.fn().mockReturnValue({
-          fixerId: 'base:test',
+          fixerId: 'element:test',
           applied: true,
           restore: vi.fn(),
         }),
       };
 
-      const specializedFixer: ComposableFixer = {
-        id: 'specialized:test',
+      const composableFixer: ComposableFixer = {
+        id: 'element:composable',
         priority: 100,
-        composesFixers: ['base:test'],
+        scope: 'element',
+        composesFixers: ['element:test'],
         shouldApply: () => true,
         apply: vi.fn().mockReturnValue({
-          fixerId: 'specialized:test',
+          fixerId: 'element:composable',
           applied: true,
           restore: vi.fn(),
         }),
       };
 
       fixerRegistry.register(baseFixer);
-      fixerRegistry.register(specializedFixer);
+      fixerRegistry.register(composableFixer);
 
       const result = await applyFixers(element);
 
-      expect(specializedFixer.apply).toHaveBeenCalled();
+      expect(composableFixer.apply).toHaveBeenCalled();
       expect(baseFixer.apply).not.toHaveBeenCalled();
       expect(result.appliedFixers).toHaveLength(1);
-      expect(result.appliedFixers[0].fixerId).toBe('specialized:test');
+      expect(result.appliedFixers[0].fixerId).toBe('element:composable');
     });
 
-    it('should apply base fixers not composed by any specialized fixer', async () => {
+    it('should apply element fixers not composed by any composable fixer', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
 
       const baseFixer1: Fixer = {
-        id: 'base:composed',
+        id: 'element:composed',
         priority: 10,
+        scope: 'element',
         shouldApply: () => true,
         apply: vi.fn().mockReturnValue({
-          fixerId: 'base:composed',
+          fixerId: 'element:composed',
           applied: true,
           restore: vi.fn(),
         }),
       };
 
       const baseFixer2: Fixer = {
-        id: 'base:standalone',
+        id: 'element:standalone',
         priority: 20,
+        scope: 'element',
         shouldApply: () => true,
         apply: vi.fn().mockReturnValue({
-          fixerId: 'base:standalone',
+          fixerId: 'element:standalone',
           applied: true,
           restore: vi.fn(),
         }),
       };
 
-      const specializedFixer: ComposableFixer = {
-        id: 'specialized:test',
+      const composableFixer: ComposableFixer = {
+        id: 'element:composable',
         priority: 100,
-        composesFixers: ['base:composed'],
+        scope: 'element',
+        composesFixers: ['element:composed'],
         shouldApply: () => true,
         apply: vi.fn().mockReturnValue({
-          fixerId: 'specialized:test',
+          fixerId: 'element:composable',
           applied: true,
           restore: vi.fn(),
         }),
@@ -192,49 +201,51 @@ describe('Pipeline', () => {
 
       fixerRegistry.register(baseFixer1);
       fixerRegistry.register(baseFixer2);
-      fixerRegistry.register(specializedFixer);
+      fixerRegistry.register(composableFixer);
 
       const result = await applyFixers(element);
 
-      expect(specializedFixer.apply).toHaveBeenCalled();
+      expect(composableFixer.apply).toHaveBeenCalled();
       expect(baseFixer1.apply).not.toHaveBeenCalled();
       expect(baseFixer2.apply).toHaveBeenCalled();
       expect(result.appliedFixers).toHaveLength(2);
     });
 
-    it('should not apply specialized fixer if shouldApply returns false', async () => {
+    it('should not apply composable fixer if shouldApply returns false', async () => {
       const element = createElement('div');
       document.body.appendChild(element);
 
       const baseFixer: Fixer = {
-        id: 'base:test',
+        id: 'element:test',
         priority: 10,
+        scope: 'element',
         shouldApply: () => true,
         apply: vi.fn().mockReturnValue({
-          fixerId: 'base:test',
+          fixerId: 'element:test',
           applied: true,
           restore: vi.fn(),
         }),
       };
 
-      const specializedFixer: ComposableFixer = {
-        id: 'specialized:test',
+      const composableFixer: ComposableFixer = {
+        id: 'element:composable',
         priority: 100,
-        composesFixers: ['base:test'],
+        scope: 'element',
+        composesFixers: ['element:test'],
         shouldApply: () => false, // Does not apply
         apply: vi.fn(),
       };
 
       fixerRegistry.register(baseFixer);
-      fixerRegistry.register(specializedFixer);
+      fixerRegistry.register(composableFixer);
 
       const result = await applyFixers(element);
 
-      // Specialized doesn't apply, so base should run
-      expect(specializedFixer.apply).not.toHaveBeenCalled();
+      // Composable doesn't apply, so base should run
+      expect(composableFixer.apply).not.toHaveBeenCalled();
       expect(baseFixer.apply).toHaveBeenCalled();
       expect(result.appliedFixers).toHaveLength(1);
-      expect(result.appliedFixers[0].fixerId).toBe('base:test');
+      expect(result.appliedFixers[0].fixerId).toBe('element:test');
     });
 
     it('should handle errors in fixer apply gracefully', async () => {
@@ -244,6 +255,7 @@ describe('Pipeline', () => {
       const errorFixer: Fixer = {
         id: 'test:error',
         priority: 10,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => {
           throw new Error('Test error');
@@ -253,6 +265,7 @@ describe('Pipeline', () => {
       const goodFixer: Fixer = {
         id: 'test:good',
         priority: 20,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => ({
           fixerId: 'test:good',
@@ -282,6 +295,7 @@ describe('Pipeline', () => {
       const fixer1: Fixer = {
         id: 'test:first',
         priority: 10,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => ({
           fixerId: 'test:first',
@@ -293,6 +307,7 @@ describe('Pipeline', () => {
       const fixer2: Fixer = {
         id: 'test:second',
         priority: 20,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => ({
           fixerId: 'test:second',
@@ -304,6 +319,7 @@ describe('Pipeline', () => {
       const fixer3: Fixer = {
         id: 'test:third',
         priority: 30,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => ({
           fixerId: 'test:third',
@@ -331,6 +347,7 @@ describe('Pipeline', () => {
       const errorFixer: Fixer = {
         id: 'test:error',
         priority: 10,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => ({
           fixerId: 'test:error',
@@ -344,6 +361,7 @@ describe('Pipeline', () => {
       const goodFixer: Fixer = {
         id: 'test:good',
         priority: 20,
+        scope: 'element',
         shouldApply: () => true,
         apply: () => ({
           fixerId: 'test:good',
@@ -373,8 +391,8 @@ describe('Pipeline', () => {
 
     it('should work with scrollable element (height + overflow fixers)', async () => {
       // Import to trigger registration
-      await import('../base/height-fixer');
-      await import('../base/overflow-fixer');
+      await import('../element/height-fixer');
+      await import('../element/overflow-fixer');
 
       const element = createScrollableElement({
         scrollHeight: 500,
@@ -389,8 +407,8 @@ describe('Pipeline', () => {
       expect(result.appliedFixers.length).toBeGreaterThanOrEqual(2);
 
       const fixerIds = result.appliedFixers.map((f: { fixerId: string }) => f.fixerId);
-      expect(fixerIds).toContain('base:height');
-      expect(fixerIds).toContain('base:overflow');
+      expect(fixerIds).toContain('element:height');
+      expect(fixerIds).toContain('element:overflow');
     });
   });
 });

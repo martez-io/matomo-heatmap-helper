@@ -1,5 +1,12 @@
 /**
- * Element expansion and layout restoration
+ * Layout Preparation and Restoration
+ *
+ * Prepares page layout for heatmap screenshot capture by:
+ * - Expanding scrollable elements to show full content
+ * - Converting relative URLs to absolute
+ * - Cleaning up visual indicators
+ *
+ * And restoring the original layout afterward.
  */
 
 import { ScrollTracker, type ElementMetadata } from './state';
@@ -11,7 +18,10 @@ import {
 } from './dom-utils';
 import { logger } from '@/lib/logger';
 import { getLockedElements } from './interactive-mode';
-
+import {
+  applyAndStoreDocumentUrlFixes,
+  restoreDocumentUrlFixes,
+} from './fixers/global/relative-url-fixer';
 
 /**
  * Restore original styles for non-locked elements only
@@ -47,11 +57,13 @@ function cleanupScrolledElementsState(): void {
   });
 }
 
-
 /**
- * Expand all tracked scrollable elements
+ * Prepare layout for screenshot capture
+ *
+ * Expands all tracked scrollable elements, applies document-level fixes,
+ * and waits for rendering to complete.
  */
-export async function handleExpandElements(): Promise<void> {
+export async function prepareLayout(): Promise<void> {
   ScrollTracker.isTracking = false;
 
   // Merge locked and scrolled elements (avoiding duplicates)
@@ -68,11 +80,14 @@ export async function handleExpandElements(): Promise<void> {
   });
 
   if (elementsToExpand.size === 0) {
-    logger.debug('Content', 'No elements to expand - skipping expansion');
+    logger.debug('Content', 'No elements to expand - skipping layout preparation');
     return;
   }
 
-  logger.debug('Content', `Expanding ${elementsToExpand.size} elements (${ScrollTracker.scrolledElements.size} scrolled, ${ScrollTracker.lockedElements.size} locked)`);
+  logger.debug(
+    'Content',
+    `Preparing layout: ${elementsToExpand.size} elements (${ScrollTracker.scrolledElements.size} scrolled, ${ScrollTracker.lockedElements.size} locked)`
+  );
 
   // Store and expand html/body
   storeOriginalState(document.documentElement);
@@ -105,17 +120,26 @@ export async function handleExpandElements(): Promise<void> {
   // Force reflow
   document.body.offsetHeight;
 
+  // Apply document-level URL fixes (convert relative to absolute)
+  applyAndStoreDocumentUrlFixes(document);
+
   // Wait for rendering
   await sleep(500);
 
-  logger.debug('Content', 'Elements expanded');
+  logger.debug('Content', 'Layout prepared for capture');
 }
 
 /**
  * Restore page layout to original state
+ *
+ * Restores all styles, clears state, and undoes document-level fixes.
+ * Locked elements maintain their fixer-applied state.
  */
-export function handleRestore(): void {
+export function restoreLayout(): void {
   logger.debug('Content', 'Restoring layout');
+
+  // Restore document-level URL fixes first
+  restoreDocumentUrlFixes();
 
   // Clean up scanner state
   document.documentElement.classList.remove('mhh-scanner-active');
@@ -132,3 +156,10 @@ export function handleRestore(): void {
 
   logger.debug('Content', `Layout restored, ${lockedCount} locked elements preserved`);
 }
+
+/**
+ * Legacy aliases for backward compatibility
+ * @deprecated Use prepareLayout and restoreLayout instead
+ */
+export const handleExpandElements = prepareLayout;
+export const handleRestore = restoreLayout;

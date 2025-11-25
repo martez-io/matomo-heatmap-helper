@@ -7,7 +7,7 @@ import { browser } from 'wxt/browser';
 import type { ContentScriptMessage, ScrollTrackerStatus } from '@/types/messages';
 import { ScrollTracker } from './state';
 import { handleStartTracking, handleStopTracking } from './scroll-tracking';
-import { handleExpandElements, handleRestore } from './expansion';
+import { prepareLayout, restoreLayout } from './layout-prep';
 import {
   handleEnterInteractiveMode,
   handleExitInteractiveMode,
@@ -56,13 +56,15 @@ export default defineContentScript({
               break;
 
             case 'expandElements':
-              handleExpandElements()
+            case 'prepareLayout':
+              prepareLayout()
                 .then(() => sendResponse({ success: true }))
                 .catch((error) => sendResponse({ success: false, error: error.message }));
               return true; // Async response
 
             case 'restore':
-              handleRestore();
+            case 'restoreLayout':
+              restoreLayout();
               sendResponse({ success: true });
               break;
 

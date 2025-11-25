@@ -10,9 +10,10 @@ import type { ComposableFixer, FixerContext, FixerResult } from '../types';
 import { fixerRegistry } from '../registry';
 
 export const stickyHeaderFixer: ComposableFixer = {
-  id: 'specialized:sticky-header',
+  id: 'element:sticky-header',
   priority: 110,
-  composesFixers: ['base:position'],
+  scope: 'element',
+  composesFixers: ['element:position'],
 
   shouldApply(context: FixerContext): boolean {
     const { element, computedStyle } = context;
@@ -68,7 +69,7 @@ export const stickyHeaderFixer: ComposableFixer = {
     element.style.width = 'auto';
 
     return {
-      fixerId: 'specialized:sticky-header',
+      fixerId: 'element:sticky-header',
       applied: true,
       restore() {
         element.style.position = originalPosition;

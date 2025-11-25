@@ -13,7 +13,7 @@ import {
   detectCorsResources,
   deduplicateByUrl,
   type DetectedResource,
-} from '../cors/resource-detector';
+} from '../utils/cors-detector';
 import type { BackgroundResponse } from '@/types/messages';
 
 /**
@@ -84,8 +84,9 @@ function mightHaveCorsResources(context: FixerContext): boolean {
 }
 
 export const corsFixer: Fixer = {
-  id: 'specialized:cors',
+  id: 'element:cors',
   priority: 5, // Run early before other fixers modify the DOM
+  scope: 'element',
 
   shouldApply(context: FixerContext): boolean {
     return mightHaveCorsResources(context);
@@ -99,7 +100,7 @@ export const corsFixer: Fixer = {
 
     if (detectedResources.length === 0) {
       logger.debug('Content', 'CORS fixer: No cross-origin resources found');
-      return { fixerId: 'specialized:cors', applied: false, restore: () => {} };
+      return { fixerId: 'element:cors', applied: false, restore: () => {} };
     }
 
     logger.debug('Content', `CORS fixer: Found ${detectedResources.length} cross-origin resources`);
@@ -116,7 +117,7 @@ export const corsFixer: Fixer = {
 
       if (!response.success || !response.corsResults) {
         logger.warn('Content', 'CORS fixer: Background fetch failed:', response.error);
-        return { fixerId: 'specialized:cors', applied: false, restore: () => {} };
+        return { fixerId: 'element:cors', applied: false, restore: () => {} };
       }
 
       // Track which resources were successfully applied for restoration
@@ -151,7 +152,7 @@ export const corsFixer: Fixer = {
       );
 
       return {
-        fixerId: 'specialized:cors',
+        fixerId: 'element:cors',
         applied: successCount > 0,
         restore() {
           // Restore all modified resources to their original URLs
@@ -168,7 +169,7 @@ export const corsFixer: Fixer = {
       };
     } catch (err) {
       logger.error('Content', 'CORS fixer: Unexpected error:', err);
-      return { fixerId: 'specialized:cors', applied: false, restore: () => {} };
+      return { fixerId: 'element:cors', applied: false, restore: () => {} };
     }
   },
 };

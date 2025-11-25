@@ -4,13 +4,14 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fixerRegistry } from '../registry';
-import type { Fixer, ComposableFixer, FixerContext, FixerResult } from '../types';
+import type { Fixer, ComposableFixer, FixerScope } from '../types';
 
-// Create a mock fixer for testing
-function createMockFixer(id: string, priority: number): Fixer {
+// Create a mock element-scope fixer for testing
+function createMockFixer(id: string, priority: number, scope: FixerScope = 'element'): Fixer {
   return {
     id,
     priority,
+    scope,
     shouldApply: vi.fn().mockReturnValue(true),
     apply: vi.fn().mockReturnValue({
       fixerId: id,
@@ -20,7 +21,7 @@ function createMockFixer(id: string, priority: number): Fixer {
   };
 }
 
-// Create a mock composable fixer for testing
+// Create a mock composable fixer for testing (always element scope)
 function createMockComposableFixer(
   id: string,
   priority: number,
@@ -29,6 +30,7 @@ function createMockComposableFixer(
   return {
     id,
     priority,
+    scope: 'element',
     composesFixers,
     shouldApply: vi.fn().mockReturnValue(true),
     apply: vi.fn().mockReturnValue({
@@ -114,60 +116,71 @@ describe('FixerRegistry', () => {
     });
   });
 
-  describe('getBaseFixers', () => {
-    it('should return only non-composable fixers', () => {
-      const baseFixer = createMockFixer('base:test', 10);
-      const composableFixer = createMockComposableFixer('specialized:test', 100, ['base:test']);
+  describe('getElementFixers', () => {
+    it('should return only element-scope fixers', () => {
+      const elementFixer = createMockFixer('element:test', 10, 'element');
+      const globalFixer = createMockFixer('global:test', 100, 'global');
 
-      fixerRegistry.register(baseFixer);
-      fixerRegistry.register(composableFixer);
+      fixerRegistry.register(elementFixer);
+      fixerRegistry.register(globalFixer);
 
-      const baseFixers = fixerRegistry.getBaseFixers();
+      const elementFixers = fixerRegistry.getElementFixers();
 
-      expect(baseFixers).toHaveLength(1);
-      expect(baseFixers[0].id).toBe('base:test');
+      expect(elementFixers).toHaveLength(1);
+      expect(elementFixers[0].id).toBe('element:test');
     });
 
     it('should return fixers sorted by priority', () => {
-      const fixer1 = createMockFixer('base:high', 30);
-      const fixer2 = createMockFixer('base:low', 10);
+      const fixer1 = createMockFixer('element:high', 30, 'element');
+      const fixer2 = createMockFixer('element:low', 10, 'element');
 
       fixerRegistry.register(fixer1);
       fixerRegistry.register(fixer2);
 
-      const baseFixers = fixerRegistry.getBaseFixers();
+      const elementFixers = fixerRegistry.getElementFixers();
 
-      expect(baseFixers[0].id).toBe('base:low');
-      expect(baseFixers[1].id).toBe('base:high');
+      expect(elementFixers[0].id).toBe('element:low');
+      expect(elementFixers[1].id).toBe('element:high');
+    });
+
+    it('should include composable fixers (element scope)', () => {
+      const baseFixer = createMockFixer('element:base', 10, 'element');
+      const composableFixer = createMockComposableFixer('element:composable', 100, ['element:base']);
+
+      fixerRegistry.register(baseFixer);
+      fixerRegistry.register(composableFixer);
+
+      const elementFixers = fixerRegistry.getElementFixers();
+
+      expect(elementFixers).toHaveLength(2);
     });
   });
 
-  describe('getSpecializedFixers', () => {
-    it('should return only composable fixers', () => {
-      const baseFixer = createMockFixer('base:test', 10);
-      const composableFixer = createMockComposableFixer('specialized:test', 100, ['base:test']);
+  describe('getGlobalFixers', () => {
+    it('should return only global-scope fixers', () => {
+      const elementFixer = createMockFixer('element:test', 10, 'element');
+      const globalFixer = createMockFixer('global:test', 100, 'global');
 
-      fixerRegistry.register(baseFixer);
-      fixerRegistry.register(composableFixer);
+      fixerRegistry.register(elementFixer);
+      fixerRegistry.register(globalFixer);
 
-      const specializedFixers = fixerRegistry.getSpecializedFixers();
+      const globalFixers = fixerRegistry.getGlobalFixers();
 
-      expect(specializedFixers).toHaveLength(1);
-      expect(specializedFixers[0].id).toBe('specialized:test');
-      expect(specializedFixers[0].composesFixers).toContain('base:test');
+      expect(globalFixers).toHaveLength(1);
+      expect(globalFixers[0].id).toBe('global:test');
     });
 
     it('should return fixers sorted by priority', () => {
-      const fixer1 = createMockComposableFixer('specialized:high', 120, []);
-      const fixer2 = createMockComposableFixer('specialized:low', 100, []);
+      const fixer1 = createMockFixer('global:high', 30, 'global');
+      const fixer2 = createMockFixer('global:low', 10, 'global');
 
       fixerRegistry.register(fixer1);
       fixerRegistry.register(fixer2);
 
-      const specializedFixers = fixerRegistry.getSpecializedFixers();
+      const globalFixers = fixerRegistry.getGlobalFixers();
 
-      expect(specializedFixers[0].id).toBe('specialized:low');
-      expect(specializedFixers[1].id).toBe('specialized:high');
+      expect(globalFixers[0].id).toBe('global:low');
+      expect(globalFixers[1].id).toBe('global:high');
     });
   });
 

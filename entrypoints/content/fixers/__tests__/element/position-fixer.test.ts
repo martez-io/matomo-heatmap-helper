@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { positionFixer } from '../../base/position-fixer';
+import { positionFixer } from '../../element/position-fixer';
 import { createElement, createFixerContext, cleanup } from '../test-utils';
 
 describe('PositionFixer', () => {
@@ -13,11 +13,15 @@ describe('PositionFixer', () => {
 
   describe('metadata', () => {
     it('should have correct ID', () => {
-      expect(positionFixer.id).toBe('base:position');
+      expect(positionFixer.id).toBe('element:position');
     });
 
     it('should have priority 30', () => {
       expect(positionFixer.priority).toBe(30);
+    });
+
+    it('should have element scope', () => {
+      expect(positionFixer.scope).toBe('element');
     });
   });
 
@@ -87,7 +91,7 @@ describe('PositionFixer', () => {
       const result = positionFixer.apply(context);
 
       expect(result.applied).toBe(true);
-      expect(result.fixerId).toBe('base:position');
+      expect(result.fixerId).toBe('element:position');
     });
   });
 

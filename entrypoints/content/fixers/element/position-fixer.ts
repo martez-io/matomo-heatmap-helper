@@ -10,8 +10,9 @@ import type { Fixer, FixerContext, FixerResult } from '../types';
 import { fixerRegistry } from '../registry';
 
 export const positionFixer: Fixer = {
-  id: 'base:position',
+  id: 'element:position',
   priority: 30,
+  scope: 'element',
 
   shouldApply(context: FixerContext): boolean {
     // Apply if element is statically positioned (needs context for indicators)
@@ -27,7 +28,7 @@ export const positionFixer: Fixer = {
     element.style.position = 'relative';
 
     return {
-      fixerId: 'base:position',
+      fixerId: 'element:position',
       applied: true,
       restore() {
         element.style.position = originalPosition;

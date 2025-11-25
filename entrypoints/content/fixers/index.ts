@@ -1,7 +1,11 @@
 /**
- * Element Fixer System
+ * Fixer System
  *
- * A composable system for fixing element CSS/DOM for heatmap screenshots.
+ * A composable system for fixing CSS/DOM for heatmap screenshots.
+ * Fixers are organized by scope:
+ * - element/: Run on individual locked/scrolled elements
+ * - global/: Run once on entire document
+ *
  * Fixers are auto-registered when their modules are imported.
  */
 
@@ -11,8 +15,8 @@ export * from './types';
 // Re-export registry
 export { fixerRegistry } from './registry';
 
-// Re-export pipeline
-export { applyFixers } from './pipeline';
+// Re-export pipeline functions
+export { applyFixers, applyElementFixers, applyGlobalFixers } from './pipeline';
 
 // Re-export state management
 export {
@@ -28,14 +32,29 @@ export {
 export { applyLockVisualIndicator, detectAvailablePseudoElement } from './lock-indicator';
 export type { LockIndicatorResult, IndicatorType } from './lock-indicator';
 
-// Import fixers to trigger auto-registration
-// Base fixers
-import './base/height-fixer';
-import './base/overflow-fixer';
-import './base/position-fixer';
+// Import element-scope fixers to trigger auto-registration
+import './element/height-fixer';
+import './element/overflow-fixer';
+import './element/position-fixer';
+import './element/iframe-fixer';
+import './element/sticky-header-fixer';
+import './element/video-fixer';
+import './element/cors-fixer';
 
-// Specialized fixers
-import './specialized/iframe-fixer';
-import './specialized/sticky-header-fixer';
-import './specialized/video-fixer';
-import './specialized/cors-fixer';
+// Import global-scope fixers to trigger auto-registration
+import './global/relative-url-fixer';
+
+// Re-export global fixer helpers for backward compatibility
+export {
+  applyAndStoreDocumentUrlFixes,
+  restoreDocumentUrlFixes,
+  hasDocumentUrlFixes,
+} from './global/relative-url-fixer';
+
+// Re-export URL utilities for external use
+export { isRelativeUrl, detectRelativeUrls, toAbsoluteUrl } from './utils/url-detector';
+export { applyAbsoluteUrl, restoreOriginalUrl } from './utils/url-converter';
+
+// Re-export CORS utilities for external use
+export { isCrossOrigin, detectCorsResources, deduplicateByUrl } from './utils/cors-detector';
+export type { DetectedResource } from './utils/cors-detector';

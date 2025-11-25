@@ -1,36 +1,47 @@
-# Element Fixer System
+# Fixer System
 
-A composable, extensible system for fixing element CSS/DOM properties to ensure proper heatmap screenshot capture.
+A composable, extensible system for fixing CSS/DOM properties to ensure proper heatmap screenshot capture.
 
 ## Overview
 
-The fixer system addresses the common problem where pages with custom scroll containers, overflow:hidden elements, or fixed-height containers don't capture fully in Matomo's heatmap screenshots. When users select elements in interactive mode, the fixer pipeline applies appropriate corrections and stores self-contained restoration functions.
+The fixer system addresses common problems where pages with custom scroll containers, overflow:hidden elements, fixed-height containers, or relative URLs don't capture correctly in Matomo's heatmap screenshots.
+
+Fixers are organized by **scope**:
+- **Element fixers**: Run on individual locked/scrolled elements selected by users
+- **Global fixers**: Run once on the entire document during screenshot preparation
 
 ## Architecture
 
 ```
 fixers/
-├── types.ts              # Core interfaces (Fixer, ComposableFixer, FixerContext, FixerResult)
+├── types.ts              # Core interfaces (Fixer, ComposableFixer, FixerContext, etc.)
 ├── registry.ts           # FixerRegistry singleton for managing fixers
-├── pipeline.ts           # applyFixers() execution logic
+├── pipeline.ts           # applyElementFixers() and applyGlobalFixers() execution
 ├── state.ts              # elementFixResults storage
 ├── lock-indicator.ts     # Visual lock indicator (separate from layout fixers)
 ├── index.ts              # Re-exports and auto-registration imports
-├── base/                 # Base CSS fixers (single concern)
+├── element/              # Element-scope fixers (run per-element)
 │   ├── height-fixer.ts
 │   ├── overflow-fixer.ts
-│   └── position-fixer.ts
-├── specialized/          # Element-type specific fixers (may compose base fixers)
+│   ├── position-fixer.ts
 │   ├── iframe-fixer.ts
 │   ├── sticky-header-fixer.ts
-│   └── video-fixer.ts
+│   ├── video-fixer.ts
+│   └── cors-fixer.ts
+├── global/               # Global-scope fixers (run once on document)
+│   └── relative-url-fixer.ts
+├── utils/                # Shared utilities
+│   ├── url-detector.ts
+│   ├── url-converter.ts
+│   └── cors-detector.ts
 └── __tests__/            # Test files
     ├── test-utils.ts
     ├── registry.test.ts
     ├── state.test.ts
     ├── pipeline.test.ts
-    ├── base/
-    └── specialized/
+    ├── element/
+    ├── global/
+    └── utils/
 ```
 
 ## Core Concepts
@@ -41,23 +52,28 @@ Every fixer implements the `Fixer` interface:
 
 ```typescript
 interface Fixer {
-  /** Unique identifier (convention: 'base:name' or 'specialized:name') */
+  /** Unique identifier (convention: 'element:name' or 'global:name') */
   readonly id: string;
 
   /** Priority for ordering (lower numbers run first) */
   readonly priority: number;
 
-  /** Determine if this fixer should apply to the element */
-  shouldApply(context: FixerContext): boolean;
+  /** Scope determines when fixer runs: 'element' or 'global' */
+  readonly scope: FixerScope;
+
+  /** Determine if this fixer should apply */
+  shouldApply(context: FixerContext | GlobalFixerContext): boolean;
 
   /** Apply the fix and return self-contained restoration data */
-  apply(context: FixerContext): FixerResult;
+  apply(context: FixerContext | GlobalFixerContext): FixerResult;
 }
+
+type FixerScope = 'element' | 'global';
 ```
 
-### FixerContext
+### FixerContext (Element Scope)
 
-The context provides all information a fixer needs:
+Context for element-scope fixers:
 
 ```typescript
 interface FixerContext {
@@ -66,6 +82,16 @@ interface FixerContext {
   computedStyle: CSSStyleDeclaration;
   scrollHeight: number;
   clientHeight: number;
+}
+```
+
+### GlobalFixerContext (Global Scope)
+
+Context for global-scope fixers:
+
+```typescript
+interface GlobalFixerContext {
+  document: Document;
 }
 ```
 
@@ -83,50 +109,62 @@ interface FixerResult {
 
 ### ComposableFixer
 
-Specialized fixers can declare which base fixers they supersede:
+Element fixers can declare which other element fixers they supersede:
 
 ```typescript
 interface ComposableFixer extends Fixer {
-  /** IDs of base fixers this fixer supersedes */
+  /** IDs of element fixers this fixer supersedes */
   readonly composesFixers: string[];
 }
 ```
 
-When a specialized fixer applies, its composed base fixers are skipped to prevent duplicate/conflicting modifications.
+When a composable fixer applies, its composed fixers are skipped to prevent duplicate/conflicting modifications.
 
 ## Priority Guidelines
+
+### Element Fixers
 
 | Priority Range | Type | Examples |
 |---------------|------|----------|
 | 1-50 | Base CSS fixers | height (10), overflow (20), position (30) |
-| 100-199 | Specialized element fixers | iframe (100), sticky-header (110), video (120) |
+| 100-199 | Specialized element fixers | iframe (100), sticky-header (110), video (120), cors (130) |
 
 Lower priority numbers run first. Specialized fixers run after base fixers but can suppress them via `composesFixers`.
 
+### Global Fixers
+
+| Priority Range | Type | Examples |
+|---------------|------|----------|
+| 1-50 | Document-wide fixers | relative-url (10) |
+
+Global fixers run once on the entire document before element fixers are applied.
+
 ## Contributing a New Fixer
 
-### Step 1: Choose Fixer Type
+### Step 1: Choose Fixer Scope
 
-- **Base fixer**: Single CSS concern (height, overflow, position, etc.)
-- **Specialized fixer**: Element-type specific that may need custom logic or compose multiple base fixes
+- **Element fixer** (`element/`): Runs on individual locked/scrolled elements
+  - **Base**: Single CSS concern (height, overflow, position)
+  - **Specialized**: Element-type specific, may compose multiple base fixes
+- **Global fixer** (`global/`): Runs once on entire document during screenshot preparation
 
 ### Step 2: Create the Fixer File
 
 Create your fixer in the appropriate directory:
 
-**Base fixer example** (`base/my-fixer.ts`):
+**Element fixer example** (`element/my-fixer.ts`):
 
 ```typescript
 import type { Fixer, FixerContext, FixerResult } from '../types';
 import { fixerRegistry } from '../registry';
 
 export const myFixer: Fixer = {
-  id: 'base:my-fixer',
-  priority: 25, // Choose appropriate priority
+  id: 'element:my-fixer',
+  priority: 25,
+  scope: 'element',
 
   shouldApply(context: FixerContext): boolean {
     // Return true if this fixer should apply to the element
-    // Use context.computedStyle, context.element, etc.
     return context.computedStyle.someProperty === 'someValue';
   },
 
@@ -140,10 +178,9 @@ export const myFixer: Fixer = {
     element.style.someProperty = 'fixedValue';
 
     return {
-      fixerId: 'base:my-fixer',
+      fixerId: 'element:my-fixer',
       applied: true,
       restore() {
-        // Restore original state
         element.style.someProperty = originalValue;
       },
     };
@@ -154,20 +191,20 @@ export const myFixer: Fixer = {
 fixerRegistry.register(myFixer);
 ```
 
-**Specialized fixer example** (`specialized/my-element-fixer.ts`):
+**Composable element fixer example** (`element/my-element-fixer.ts`):
 
 ```typescript
 import type { ComposableFixer, FixerContext, FixerResult } from '../types';
 import { fixerRegistry } from '../registry';
 
 export const myElementFixer: ComposableFixer = {
-  id: 'specialized:my-element',
+  id: 'element:my-element',
   priority: 130,
-  composesFixers: ['base:height', 'base:overflow'], // Base fixers this supersedes
+  scope: 'element',
+  composesFixers: ['element:height', 'element:overflow'], // Fixers this supersedes
 
   shouldApply(context: FixerContext): boolean {
     const { element } = context;
-    // Check if this is the target element type
     return element.tagName.toLowerCase() === 'my-element';
   },
 
@@ -188,14 +225,11 @@ export const myElementFixer: ComposableFixer = {
     element.appendChild(createdElement);
 
     return {
-      fixerId: 'specialized:my-element',
+      fixerId: 'element:my-element',
       applied: true,
       restore() {
-        // Restore all original state
         element.style.height = originalHeight;
         element.style.overflow = originalOverflow;
-
-        // Clean up created elements
         if (createdElement) {
           createdElement.remove();
         }
@@ -204,8 +238,49 @@ export const myElementFixer: ComposableFixer = {
   },
 };
 
-// Auto-register when module loads
 fixerRegistry.register(myElementFixer);
+```
+
+**Global fixer example** (`global/my-global-fixer.ts`):
+
+```typescript
+import type { Fixer, GlobalFixerContext, FixerResult } from '../types';
+import { fixerRegistry } from '../registry';
+
+export const myGlobalFixer: Fixer = {
+  id: 'global:my-fixer',
+  priority: 20,
+  scope: 'global',
+
+  shouldApply(_context: GlobalFixerContext): boolean {
+    return true; // Or check document conditions
+  },
+
+  apply(context: GlobalFixerContext): FixerResult {
+    const { document } = context;
+
+    // Find and modify elements
+    const elements = document.querySelectorAll('.target');
+    const originalValues: string[] = [];
+
+    elements.forEach((el, i) => {
+      originalValues[i] = (el as HTMLElement).style.color;
+      (el as HTMLElement).style.color = 'red';
+    });
+
+    return {
+      fixerId: 'global:my-fixer',
+      applied: elements.length > 0,
+      restore() {
+        elements.forEach((el, i) => {
+          (el as HTMLElement).style.color = originalValues[i];
+        });
+      },
+    };
+  },
+};
+
+fixerRegistry.register(myGlobalFixer);
 ```
 
 ### Step 3: Register the Fixer
@@ -213,12 +288,11 @@ fixerRegistry.register(myElementFixer);
 Add an import in `index.ts`:
 
 ```typescript
-// In the appropriate section:
-// Base fixers
-import './base/my-fixer';
+// Element fixers
+import './element/my-fixer';
 
-// OR Specialized fixers
-import './specialized/my-element-fixer';
+// Global fixers
+import './global/my-global-fixer';
 ```
 
 ### Step 4: Write Tests
@@ -226,9 +300,9 @@ import './specialized/my-element-fixer';
 Create a test file mirroring the fixer location:
 
 ```typescript
-// __tests__/base/my-fixer.test.ts
+// __tests__/element/my-fixer.test.ts
 import { describe, it, expect, afterEach } from 'vitest';
-import { myFixer } from '../../base/my-fixer';
+import { myFixer } from '../../element/my-fixer';
 import { createElement, createFixerContext, cleanup } from '../test-utils';
 
 describe('MyFixer', () => {
@@ -238,11 +312,15 @@ describe('MyFixer', () => {
 
   describe('metadata', () => {
     it('should have correct ID', () => {
-      expect(myFixer.id).toBe('base:my-fixer');
+      expect(myFixer.id).toBe('element:my-fixer');
     });
 
     it('should have correct priority', () => {
       expect(myFixer.priority).toBe(25);
+    });
+
+    it('should have element scope', () => {
+      expect(myFixer.scope).toBe('element');
     });
   });
 
@@ -286,7 +364,7 @@ describe('MyFixer', () => {
       const result = myFixer.apply(context);
 
       expect(result.applied).toBe(true);
-      expect(result.fixerId).toBe('base:my-fixer');
+      expect(result.fixerId).toBe('element:my-fixer');
     });
   });
 
@@ -352,30 +430,58 @@ Tests run with [Vitest](https://vitest.dev/) using [happy-dom](https://github.co
 
 ## Existing Fixers
 
-### Base Fixers
+### Element Fixers (Base)
 
 | Fixer | Priority | Purpose |
 |-------|----------|---------|
-| `base:height` | 10 | Expands elements to scrollHeight, removes maxHeight |
-| `base:overflow` | 20 | Sets overflow to visible |
-| `base:position` | 30 | Converts static positioning to relative |
+| `element:height` | 10 | Expands elements to scrollHeight, removes maxHeight |
+| `element:overflow` | 20 | Sets overflow to visible |
+| `element:position` | 30 | Converts static positioning to relative |
 
-### Specialized Fixers
+### Element Fixers (Specialized)
 
 | Fixer | Priority | Composes | Purpose |
 |-------|----------|----------|---------|
-| `specialized:iframe` | 100 | height, overflow | Handles cross-origin iframes with fallback height |
-| `specialized:sticky-header` | 110 | position | Converts fixed/sticky headers to relative, creates placeholder |
-| `specialized:video` | 120 | height | Pauses video and ensures proper dimensions |
+| `element:iframe` | 100 | height, overflow | Handles cross-origin iframes with fallback height |
+| `element:sticky-header` | 110 | position | Converts fixed/sticky headers to relative, creates placeholder |
+| `element:video` | 120 | height | Pauses video and ensures proper dimensions |
+| `element:cors` | 130 | - | Fetches cross-origin images via background script |
+
+### Global Fixers
+
+| Fixer | Priority | Purpose |
+|-------|----------|---------|
+| `global:relative-url` | 10 | Converts relative URLs to absolute for screenshot capture |
 
 ## Pipeline Execution Flow
 
+### Global Fixers (`applyGlobalFixers`)
+
+1. Get all registered global-scope fixers
+2. Sort by priority (lower numbers first)
+3. For each global fixer:
+   - Call `shouldApply({ document })`
+   - If true, call `apply({ document })`
+   - Store result for restoration
+4. Return `GlobalFixResult` with `restoreAll()` method
+
+### Element Fixers (`applyElementFixers`)
+
 1. Create `FixerContext` with element data
-2. Run specialized fixers first (higher priority numbers)
-3. Track which base fixers are "composed" by applied specialized fixers
-4. Run remaining base fixers (lower priority numbers) in order
-5. Skip any base fixer that was composed by a specialized fixer
-6. Return `ElementFixResult` with all applied fixers and `restoreAll()` method
+2. Get all registered element-scope fixers
+3. Run specialized fixers first (higher priority numbers)
+4. Track which base fixers are "composed" by applied specialized fixers
+5. Run remaining base fixers (lower priority numbers) in order
+6. Skip any base fixer that was composed by a specialized fixer
+7. Return `ElementFixResult` with all applied fixers and `restoreAll()` method
+
+### Full Layout Preparation
+
+The `prepareLayout()` function in `layout-prep.ts` orchestrates both:
+
+1. Apply global fixers to document (e.g., convert relative URLs)
+2. For each locked/scrolled element, apply element fixers
+3. Return combined restoration function
 
 ## Best Practices
 

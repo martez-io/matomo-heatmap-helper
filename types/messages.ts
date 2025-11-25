@@ -34,8 +34,10 @@ export type ContentScriptMessage =
   | { action: 'startTracking'; heatmapId: number }
   | { action: 'stopTracking' }
   | { action: 'getStatus' }
-  | { action: 'expandElements' }
-  | { action: 'restore' }
+  | { action: 'prepareLayout' }
+  | { action: 'restoreLayout' }
+  | { action: 'expandElements' } // @deprecated - use prepareLayout
+  | { action: 'restore' } // @deprecated - use restoreLayout
   | { action: 'showScanner' }
   | { action: 'hideScanner' }
   | { action: 'showBorderGlow' }

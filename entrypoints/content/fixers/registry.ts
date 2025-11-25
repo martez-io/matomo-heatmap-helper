@@ -1,5 +1,7 @@
 /**
  * Fixer registry for managing available fixers
+ *
+ * Supports both element-level and global fixers via scope filtering.
  */
 
 import type { Fixer, ComposableFixer } from './types';
@@ -44,17 +46,33 @@ class FixerRegistry {
   }
 
   /**
-   * Get base fixers (non-composable)
+   * Get element-scope fixers (run on individual locked/scrolled elements)
    */
-  getBaseFixers(): Fixer[] {
-    return this.getAllSorted().filter((f) => !isComposableFixer(f));
+  getElementFixers(): Fixer[] {
+    return this.getAllSorted().filter((f) => f.scope === 'element');
   }
 
   /**
-   * Get specialized/composable fixers
+   * Get global-scope fixers (run once on entire document)
+   */
+  getGlobalFixers(): Fixer[] {
+    return this.getAllSorted().filter((f) => f.scope === 'global');
+  }
+
+  /**
+   * Get base element fixers (non-composable)
+   * @deprecated Use getElementFixers() and filter by !isComposableFixer
+   */
+  getBaseFixers(): Fixer[] {
+    return this.getElementFixers().filter((f) => !isComposableFixer(f));
+  }
+
+  /**
+   * Get composable element fixers
+   * @deprecated Use getElementFixers() and filter by isComposableFixer
    */
   getSpecializedFixers(): ComposableFixer[] {
-    return this.getAllSorted().filter((f): f is ComposableFixer => isComposableFixer(f));
+    return this.getElementFixers().filter((f): f is ComposableFixer => isComposableFixer(f));
   }
 
   /**

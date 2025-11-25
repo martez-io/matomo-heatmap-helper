@@ -1,23 +1,33 @@
 /**
  * Fixer execution pipeline
+ *
+ * Two pipelines:
+ * - applyElementFixers: Runs element-scope fixers on individual elements
+ * - applyGlobalFixers: Runs global-scope fixers on entire document
  */
 
-import type { FixerContext, ElementFixResult, FixerResult } from './types';
+import type {
+  FixerContext,
+  GlobalFixerContext,
+  ElementFixResult,
+  GlobalFixResult,
+  FixerResult,
+} from './types';
 import { isComposableFixer } from './types';
 import { fixerRegistry } from './registry';
 import { logger } from '@/lib/logger';
 
 /**
- * Execute the fixer pipeline on an element
+ * Execute element-level fixers on a single element
  *
  * Pipeline logic:
- * 1. First, run composable (specialized) fixers - they can supersede base fixers
- * 2. Then run remaining fixers, skipping any superseded by composable fixers
+ * 1. First, run composable fixers - they can supersede base fixers
+ * 2. Then run remaining element fixers, skipping any superseded
  * 3. Within each phase, run in priority order (lower first)
  *
  * Fixers can be sync or async - we use `await Promise.resolve()` to handle both uniformly.
  */
-export async function applyFixers(element: HTMLElement): Promise<ElementFixResult> {
+export async function applyElementFixers(element: HTMLElement): Promise<ElementFixResult> {
   const computedStyle = window.getComputedStyle(element);
 
   const context: FixerContext = {
@@ -31,10 +41,10 @@ export async function applyFixers(element: HTMLElement): Promise<ElementFixResul
   const appliedFixers: FixerResult[] = [];
   const handledFixerIds = new Set<string>();
 
-  const allFixers = fixerRegistry.getAllSorted();
+  const elementFixers = fixerRegistry.getElementFixers();
 
   // Phase 1: Run composable fixers first (they can supersede base fixers)
-  for (const fixer of allFixers) {
+  for (const fixer of elementFixers) {
     if (!isComposableFixer(fixer)) continue;
 
     if (fixer.shouldApply(context)) {
@@ -54,8 +64,8 @@ export async function applyFixers(element: HTMLElement): Promise<ElementFixResul
     }
   }
 
-  // Phase 2: Run remaining fixers (skip if already handled)
-  for (const fixer of allFixers) {
+  // Phase 2: Run remaining element fixers (skip if already handled)
+  for (const fixer of elementFixers) {
     if (handledFixerIds.has(fixer.id)) continue;
     if (isComposableFixer(fixer)) continue; // Already processed
 
@@ -92,3 +102,56 @@ export async function applyFixers(element: HTMLElement): Promise<ElementFixResul
     },
   };
 }
+
+/**
+ * Execute global fixers on entire document
+ *
+ * Runs all global-scope fixers in priority order.
+ * Used during screenshot preparation to fix document-wide issues.
+ */
+export async function applyGlobalFixers(doc: Document = document): Promise<GlobalFixResult> {
+  const context: GlobalFixerContext = {
+    document: doc,
+  };
+
+  const appliedFixers: FixerResult[] = [];
+  const globalFixers = fixerRegistry.getGlobalFixers();
+
+  for (const fixer of globalFixers) {
+    if (fixer.shouldApply(context)) {
+      try {
+        const result = await Promise.resolve(fixer.apply(context));
+
+        if (result.applied) {
+          appliedFixers.push(result);
+          logger.debug('Content', `Applied global fixer: ${fixer.id}`, result.count ? `(${result.count} items)` : '');
+        }
+      } catch (err) {
+        logger.error('Content', `Error applying global fixer ${fixer.id}:`, err);
+      }
+    }
+  }
+
+  return {
+    appliedFixers,
+    timestamp: Date.now(),
+    restoreAll() {
+      // Restore in reverse order of application
+      for (let i = appliedFixers.length - 1; i >= 0; i--) {
+        const result = appliedFixers[i];
+        try {
+          result.restore();
+          logger.debug('Content', `Restored global fixer: ${result.fixerId}`);
+        } catch (err) {
+          logger.error('Content', `Failed to restore global fixer ${result.fixerId}:`, err);
+        }
+      }
+    },
+  };
+}
+
+/**
+ * Legacy alias for applyElementFixers
+ * @deprecated Use applyElementFixers instead
+ */
+export const applyFixers = applyElementFixers;

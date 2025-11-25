@@ -10,9 +10,10 @@ import type { ComposableFixer, FixerContext, FixerResult } from '../types';
 import { fixerRegistry } from '../registry';
 
 export const iframeFixer: ComposableFixer = {
-  id: 'specialized:iframe',
+  id: 'element:iframe',
   priority: 100,
-  composesFixers: ['base:height', 'base:overflow'],
+  scope: 'element',
+  composesFixers: ['element:height', 'element:overflow'],
 
   shouldApply(context: FixerContext): boolean {
     return context.element.tagName === 'IFRAME';
@@ -48,7 +49,7 @@ export const iframeFixer: ComposableFixer = {
     iframe.style.overflow = 'visible';
 
     return {
-      fixerId: 'specialized:iframe',
+      fixerId: 'element:iframe',
       applied: true,
       restore() {
         iframe.style.height = originalHeight;

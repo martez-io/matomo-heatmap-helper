@@ -10,8 +10,9 @@ import type { Fixer, FixerContext, FixerResult } from '../types';
 import { fixerRegistry } from '../registry';
 
 export const heightFixer: Fixer = {
-  id: 'base:height',
+  id: 'element:height',
   priority: 10,
+  scope: 'element',
 
   shouldApply(context: FixerContext): boolean {
     // Apply if element has hidden content (scrollHeight > clientHeight)
@@ -32,7 +33,7 @@ export const heightFixer: Fixer = {
     element.style.maxHeight = 'none';
 
     return {
-      fixerId: 'base:height',
+      fixerId: 'element:height',
       applied: true,
       restore() {
         element.style.height = originalHeight;

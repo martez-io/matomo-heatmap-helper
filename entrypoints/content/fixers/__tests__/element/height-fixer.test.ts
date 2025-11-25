@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { heightFixer } from '../../base/height-fixer';
+import { heightFixer } from '../../element/height-fixer';
 import {
   createElement,
   createScrollableElement,
@@ -18,11 +18,15 @@ describe('HeightFixer', () => {
 
   describe('metadata', () => {
     it('should have correct ID', () => {
-      expect(heightFixer.id).toBe('base:height');
+      expect(heightFixer.id).toBe('element:height');
     });
 
     it('should have priority 10', () => {
       expect(heightFixer.priority).toBe(10);
+    });
+
+    it('should have element scope', () => {
+      expect(heightFixer.scope).toBe('element');
     });
   });
 
@@ -106,7 +110,7 @@ describe('HeightFixer', () => {
       const result = heightFixer.apply(context);
 
       expect(result.applied).toBe(true);
-      expect(result.fixerId).toBe('base:height');
+      expect(result.fixerId).toBe('element:height');
     });
   });
 

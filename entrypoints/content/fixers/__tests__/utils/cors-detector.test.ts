@@ -7,14 +7,14 @@ import {
   isCrossOrigin,
   detectCorsResources,
   deduplicateByUrl,
-} from '../../cors/resource-detector';
+} from '../../utils/cors-detector';
 import { createElement, cleanup } from '../test-utils';
 
 // Cross-origin test URL (different from jsdom's about:blank origin)
 const CROSS_ORIGIN_URL = 'https://cdn.example.com/image.png';
 const CROSS_ORIGIN_URL_2 = 'https://cdn.other.com/bg.jpg';
 
-describe('resource-detector', () => {
+describe('cors-detector', () => {
   afterEach(() => {
     cleanup();
   });
