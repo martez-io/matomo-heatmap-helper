@@ -6,15 +6,24 @@ import { setStorage } from '@/lib/storage';
 import type { LockedElementData } from '@/types/storage';
 import { ScrollTracker, type ElementMetadata } from './state';
 import {
-  storeOriginalState,
-  applyLockIndicator,
   getElementSelector,
   findConstrainingParents,
   isPartOfPersistentBar,
-  detectAvailablePseudoElement,
 } from './dom-utils';
 import { dispatchStatusUpdate } from './events';
 import { logger } from '@/lib/logger';
+import {
+  applyFixers,
+  storeFixResult,
+  restoreAndRemove,
+  applyLockVisualIndicator,
+  type LockIndicatorResult,
+} from './fixers';
+
+/**
+ * Map to track lock indicators for each element
+ */
+const lockIndicators = new Map<HTMLElement, LockIndicatorResult>();
 
 /**
  * Sync state to storage
@@ -33,27 +42,24 @@ async function syncStateToStorage(): Promise<void> {
 }
 
 /**
- * Lock an element at its current scroll height
+ * Lock an element using the fixer pipeline
  */
 function lockElement(element: HTMLElement): void {
-  // Store original state
-  storeOriginalState(element);
+  // Apply all relevant fixers via pipeline
+  const fixResult = applyFixers(element);
+  storeFixResult(element, fixResult);
 
-  // Get computed height
+  // Apply visual lock indicator (separate from fixers)
+  const indicatorResult = applyLockVisualIndicator(element);
+  lockIndicators.set(element, indicatorResult);
+
+  // Get element info for metadata
   const computedHeight = element.scrollHeight;
   const computedClientHeight = element.clientHeight;
   const selector = getElementSelector(element);
   const parents = findConstrainingParents(element);
 
-  // Lock the height
-  element.style.height = `${computedHeight}px`;
-  element.style.minHeight = `${computedHeight}px`;
-
-  // Detect and apply lock indicator
-  const indicatorType = detectAvailablePseudoElement(element);
-  applyLockIndicator(element, indicatorType);
-
-  // Store metadata
+  // Store metadata in ScrollTracker for UI/sync
   const metadata: ElementMetadata = {
     element,
     selector,
@@ -67,39 +73,32 @@ function lockElement(element: HTMLElement): void {
 
   ScrollTracker.lockedElements.set(element, metadata);
 
-  logger.debug('Content', `Locked: ${selector} (${computedHeight}px, indicator: ${indicatorType})`);
+  const appliedFixerIds = fixResult.appliedFixers.map((f) => f.fixerId).join(', ');
+  logger.debug(
+    'Content',
+    `Locked: ${selector} (fixers: ${appliedFixerIds || 'none'}, indicator: ${indicatorResult.indicatorType})`
+  );
 
   // Notify persistent bar
   dispatchStatusUpdate();
 }
 
 /**
- * Unlock an element and restore its original styles
+ * Unlock an element using self-contained restore functions
  */
 function unlockElement(element: HTMLElement): void {
   // Remove from locked elements
   ScrollTracker.lockedElements.delete(element);
 
-  // Remove all lock classes and data attributes
-  element.classList.remove('mhh-locked-element');
-  element.classList.remove('mhh-locked-indicator-before');
-  element.classList.remove('mhh-locked-indicator-after');
-  delete element.dataset.mhhLocked;
-  delete element.dataset.mhhLockIndicator;
-
-  // Remove fallback DOM element if exists
-  const lockIcon = element.querySelector('.matomo-lock-icon');
-  if (lockIcon) {
-    lockIcon.remove();
+  // Remove visual indicator
+  const indicatorResult = lockIndicators.get(element);
+  if (indicatorResult) {
+    indicatorResult.remove();
+    lockIndicators.delete(element);
   }
 
-  // Restore original styles
-  const originalState = ScrollTracker.originalStates.get(element);
-  if (originalState) {
-    element.style.height = originalState.height;
-    element.style.minHeight = originalState.minHeight;
-    element.style.position = originalState.position;
-  }
+  // Restore all fixers (self-contained restoration)
+  restoreAndRemove(element);
 
   logger.debug('Content', `Unlocked: ${getElementSelector(element)}`);
 }
@@ -372,4 +371,54 @@ export function getLockedElementsStatus(): {
     lockedCount: ScrollTracker.lockedElements.size,
     lockedElements,
   };
+}
+
+/**
+ * Temporarily hide lock indicators (for screenshots)
+ * Returns a function to restore them
+ */
+export function hideLockIndicatorsTemporarily(): () => void {
+  const hiddenIndicators: Array<{ element: HTMLElement; result: LockIndicatorResult }> = [];
+
+  lockIndicators.forEach((result, element) => {
+    // Store the indicator info
+    hiddenIndicators.push({ element, result });
+
+    // Remove visual classes but keep the element tracked
+    element.classList.remove('mhh-locked-element');
+    element.classList.remove('mhh-locked-indicator-before');
+    element.classList.remove('mhh-locked-indicator-after');
+
+    // Hide fallback DOM element if exists
+    const lockIcon = element.querySelector('.matomo-lock-icon') as HTMLElement | null;
+    if (lockIcon) {
+      lockIcon.style.display = 'none';
+    }
+  });
+
+  // Return restore function
+  return () => {
+    hiddenIndicators.forEach(({ element, result }) => {
+      // Restore classes
+      element.classList.add('mhh-locked-element');
+      if (result.indicatorType === 'before') {
+        element.classList.add('mhh-locked-indicator-before');
+      } else if (result.indicatorType === 'after') {
+        element.classList.add('mhh-locked-indicator-after');
+      }
+
+      // Show fallback DOM element if exists
+      const lockIcon = element.querySelector('.matomo-lock-icon') as HTMLElement | null;
+      if (lockIcon) {
+        lockIcon.style.display = '';
+      }
+    });
+  };
+}
+
+/**
+ * Get all locked elements for expansion
+ */
+export function getLockedElements(): HTMLElement[] {
+  return Array.from(ScrollTracker.lockedElements.keys());
 }

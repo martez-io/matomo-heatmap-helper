@@ -16,6 +16,9 @@ import {
 import { injectStyles, showScanner, hideScanner, showBorderGlow } from './animations';
 import { logger } from '@/lib/logger';
 
+// Initialize fixers (registers all fixers to the registry)
+import './fixers';
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',

@@ -45,46 +45,6 @@ export function expandScrollableElement(element: HTMLElement, meta: ElementMetad
 }
 
 /**
- * Apply lock indicator to an element
- */
-export function applyLockIndicator(
-  element: HTMLElement,
-  indicatorType: 'before' | 'after' | 'fallback'
-): void {
-  // Add base class and data attribute
-  element.classList.add('mhh-locked-element');
-  element.dataset.mhhLocked = 'true';
-  element.dataset.mhhLockIndicator = indicatorType;
-
-  // Apply visual indicator based on type
-  if (indicatorType === 'before') {
-    element.classList.add('mhh-locked-indicator-before');
-  } else if (indicatorType === 'after') {
-    element.classList.add('mhh-locked-indicator-after');
-  } else if (indicatorType === 'fallback') {
-    // Create fallback DOM element
-    const lockIcon = document.createElement('div');
-    lockIcon.className = 'matomo-lock-icon';
-    lockIcon.style.cssText = `
-      position: absolute;
-      inset: 0;
-      border: 2px solid #10b981;
-      background: rgba(16, 185, 129, 0.2);
-      pointer-events: none;
-      z-index: 999990;
-      box-sizing: border-box;
-    `;
-    element.appendChild(lockIcon);
-  }
-
-  // Ensure element has position context
-  const computedPosition = window.getComputedStyle(element).position;
-  if (computedPosition === 'static') {
-    element.style.position = 'relative';
-  }
-}
-
-/**
  * Get a CSS selector for an element
  */
 export function getElementSelector(el: Element): string {
@@ -166,22 +126,3 @@ export function isPartOfPersistentBar(element: HTMLElement): boolean {
   return false;
 }
 
-/**
- * Detect which pseudo-element is available for lock indicator
- */
-export function detectAvailablePseudoElement(
-  element: HTMLElement
-): 'before' | 'after' | 'fallback' {
-  const beforeStyle = window.getComputedStyle(element, '::before');
-  const afterStyle = window.getComputedStyle(element, '::after');
-
-  // Check if pseudo-element is in use
-  const beforeInUse = beforeStyle.content !== 'none' && beforeStyle.content !== '';
-  const afterInUse = afterStyle.content !== 'none' && afterStyle.content !== '';
-
-  // Prefer ::after, fallback to ::before, then to DOM element
-  if (!afterInUse) return 'after';
-  if (!beforeInUse) return 'before';
-
-  return 'fallback'; // Both in use, use DOM element method
-}

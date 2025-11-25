@@ -7,32 +7,25 @@ import {
   storeOriginalState,
   expandElement,
   expandScrollableElement,
-  applyLockIndicator,
   sleep,
 } from './dom-utils';
 import { logger } from '@/lib/logger';
+import { getLockedElements } from './interactive-mode';
+
 
 /**
- * Remove lock indicators temporarily during restore
- */
-function removeLockIndicatorsTemporarily(lockedElements: HTMLElement[]): void {
-  lockedElements.forEach((element) => {
-    element.classList.remove('mhh-locked-element');
-    element.classList.remove('mhh-locked-indicator-before');
-    element.classList.remove('mhh-locked-indicator-after');
-
-    const lockIcon = element.querySelector('.matomo-lock-icon');
-    if (lockIcon) {
-      lockIcon.remove();
-    }
-  });
-}
-
-/**
- * Restore original styles for all elements
+ * Restore original styles for non-locked elements only
+ * Locked elements maintain their fixer-applied state
  */
 function restoreOriginalStyles(): void {
+  const lockedElementSet = new Set(getLockedElements());
+
   ScrollTracker.originalStates.forEach((styles, element) => {
+    // Skip locked elements - they have their own restoration via fixers
+    if (lockedElementSet.has(element)) {
+      return;
+    }
+
     Object.entries(styles).forEach(([prop, value]) => {
       (element.style as any)[prop] = value;
     });
@@ -54,31 +47,6 @@ function cleanupScrolledElementsState(): void {
   });
 }
 
-/**
- * Re-apply lock indicators after restore
- */
-function reapplyLockIndicators(lockedElements: HTMLElement[]): number {
-  let preservedCount = 0;
-
-  lockedElements.forEach((element) => {
-    // Check if element still exists in DOM
-    if (!document.body.contains(element)) {
-      logger.warn('Content', 'Locked element removed from DOM, cleaning up');
-      ScrollTracker.lockedElements.delete(element);
-      ScrollTracker.originalStates.delete(element);
-      return;
-    }
-
-    const meta = ScrollTracker.lockedElements.get(element);
-    if (!meta) return;
-
-    const indicatorType = element.dataset.mhhLockIndicator as 'before' | 'after' | 'fallback';
-    applyLockIndicator(element, indicatorType);
-    preservedCount++;
-  });
-
-  return preservedCount;
-}
 
 /**
  * Expand all tracked scrollable elements
@@ -152,20 +120,15 @@ export function handleRestore(): void {
   // Clean up scanner state
   document.documentElement.classList.remove('mhh-scanner-active');
 
-  // Extract locked elements before removing indicators
-  const lockedElements = Array.from(ScrollTracker.lockedElements.keys());
+  // Get locked elements count
+  const lockedCount = getLockedElements().length;
 
-  // Remove lock indicators temporarily for clean restore
-  removeLockIndicatorsTemporarily(lockedElements);
-
-  // Restore original styles for all elements
+  // Restore original styles for non-locked elements
+  // Locked elements keep their fixer-applied state
   restoreOriginalStyles();
 
   // Clear scrolled elements and optimize memory
   cleanupScrolledElementsState();
 
-  // Re-apply lock indicators to preserved elements
-  const preservedCount = reapplyLockIndicators(lockedElements);
-
-  logger.debug('Content', `Layout restored, ${preservedCount} locked elements preserved`);
+  logger.debug('Content', `Layout restored, ${lockedCount} locked elements preserved`);
 }
