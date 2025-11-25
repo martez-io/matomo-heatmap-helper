@@ -70,6 +70,14 @@ export interface CorsResourceResult {
   error?: string;
 }
 
+// CSS text fetching for cross-origin stylesheets (font detection)
+export interface CssTextResult {
+  url: string;
+  success: boolean;
+  cssText?: string;
+  error?: string;
+}
+
 // Background worker messages
 export type BackgroundMessage =
   | { action: 'onSuccessfulScreenshot'; url: string; tabId: number }
@@ -79,7 +87,8 @@ export type BackgroundMessage =
   | { action: 'resolveSite'; url: string }
   | { action: 'openSettings' }
   | { action: 'openBugReport' }
-  | { action: 'fetchCorsResources'; requests: CorsResourceRequest[] };
+  | { action: 'fetchCorsResources'; requests: CorsResourceRequest[] }
+  | { action: 'fetchCssText'; urls: string[] };
 
 export type BackgroundResponse = {
   success: boolean;
@@ -91,6 +100,8 @@ export type BackgroundResponse = {
   // CORS resource fetching fields
   corsResults?: CorsResourceResult[];
   totalSizeBytes?: number;
+  // CSS text fetching fields
+  cssTextResults?: CssTextResult[];
 };
 
 // Page context messages (for Matomo API calls)

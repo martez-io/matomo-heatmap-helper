@@ -4,7 +4,7 @@
  */
 
 import { logger } from '@/lib/logger';
-import type { CorsResourceRequest, CorsResourceResult } from '@/types/messages';
+import type { CorsResourceRequest, CorsResourceResult, CssTextResult } from '@/types/messages';
 
 const MIME_TYPES: Record<string, string> = {
   png: 'image/png',
@@ -161,4 +161,60 @@ export async function fetchCorsResources(
   );
 
   return { results, totalSizeBytes };
+}
+
+/**
+ * Fetch a single CSS file as text
+ */
+async function fetchCssTextSingle(url: string): Promise<CssTextResult> {
+  try {
+    // Skip data URIs and blob URLs
+    if (url.startsWith('data:') || url.startsWith('blob:')) {
+      return { url, success: false, error: 'Cannot fetch data/blob URLs' };
+    }
+
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      cache: 'force-cache',
+      credentials: 'omit',
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return { url, success: false, error: `HTTP ${response.status}` };
+    }
+
+    const cssText = await response.text();
+    return { url, success: true, cssText };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const isAbort = error instanceof Error && error.name === 'AbortError';
+    return { url, success: false, error: isAbort ? 'Timeout' : message };
+  }
+}
+
+/**
+ * Fetch multiple CSS files as text
+ * Used to read cross-origin stylesheets for font detection
+ */
+export async function fetchCssText(urls: string[]): Promise<CssTextResult[]> {
+  logger.debug('Background', `Fetching ${urls.length} CSS files`);
+
+  // Process in batches to avoid overwhelming the network
+  const results: CssTextResult[] = [];
+
+  for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+    const batch = urls.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(batch.map(fetchCssTextSingle));
+    results.push(...batchResults);
+  }
+
+  const successCount = results.filter((r) => r.success).length;
+  logger.debug('Background', `CSS fetch complete: ${successCount}/${urls.length} succeeded`);
+
+  return results;
 }

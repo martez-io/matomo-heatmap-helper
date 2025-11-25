@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser';
 import { ScreenshotStateMachine } from './background/ScreenshotStateMachine';
-import { fetchCorsResources } from './background/cors-fetcher';
+import { fetchCorsResources, fetchCssText } from './background/cors-fetcher';
 import { getStorage, getCredentials, setStorage } from '@/lib/storage';
 import { createMatomoClient } from '@/lib/matomo-api';
 import { resolveSiteForUrl } from '@/lib/site-resolver';
@@ -93,6 +93,9 @@ async function handleMessage(
 
     case 'fetchCorsResources':
       return await handleFetchCorsResources(message.requests);
+
+    case 'fetchCssText':
+      return await handleFetchCssText(message.urls);
 
     default:
       return { success: false, error: 'Unknown action' };
@@ -252,6 +255,25 @@ async function handleFetchCorsResources(
     };
   } catch (error) {
     logger.error('Background', 'Failed to fetch CORS resources:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+async function handleFetchCssText(urls: string[]): Promise<BackgroundResponse> {
+  try {
+    logger.debug('Background', 'Fetching CSS text:', urls.length);
+
+    const results = await fetchCssText(urls);
+
+    return {
+      success: true,
+      cssTextResults: results,
+    };
+  } catch (error) {
+    logger.error('Background', 'Failed to fetch CSS text:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

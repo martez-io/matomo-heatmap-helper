@@ -22,6 +22,10 @@ import {
   applyAndStoreDocumentUrlFixes,
   restoreDocumentUrlFixes,
 } from './fixers/global/relative-url-fixer';
+import {
+  applyAndStoreFontCorsFixes,
+  restoreFontCorsFixes,
+} from './fixers/global/font-cors-fixer';
 
 /**
  * Restore original styles for non-locked elements only
@@ -123,6 +127,9 @@ export async function prepareLayout(): Promise<void> {
   // Apply document-level URL fixes (convert relative to absolute)
   applyAndStoreDocumentUrlFixes(document);
 
+  // Apply font CORS fixes (proxy cross-origin fonts via background)
+  await applyAndStoreFontCorsFixes(document);
+
   // Wait for rendering
   await sleep(500);
 
@@ -138,7 +145,10 @@ export async function prepareLayout(): Promise<void> {
 export function restoreLayout(): void {
   logger.debug('Content', 'Restoring layout');
 
-  // Restore document-level URL fixes first
+  // Restore font CORS fixes first (applied last, restore first)
+  restoreFontCorsFixes();
+
+  // Restore document-level URL fixes
   restoreDocumentUrlFixes();
 
   // Clean up scanner state
