@@ -107,6 +107,38 @@
   --radius: 0.5rem;
 }
 
+/* Dark mode overrides - automatically detects system preference */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Softer dark mode colors - comfortable dark gray */
+    --color-background: oklch(26% 0.005 260);
+    --color-foreground: oklch(93% 0 0);
+
+    --color-card: oklch(30% 0.005 260);
+    --color-card-foreground: oklch(93% 0 0);
+
+    --color-popover: oklch(30% 0.005 260);
+    --color-popover-foreground: oklch(93% 0 0);
+
+    --color-primary-foreground: oklch(18% 0 0);
+
+    --color-secondary: oklch(36% 0.005 260);
+    --color-secondary-foreground: oklch(93% 0 0);
+
+    --color-muted: oklch(33% 0.005 260);
+    --color-muted-foreground: oklch(65% 0 0);
+
+    --color-accent: oklch(36% 0.005 260);
+    --color-accent-foreground: oklch(93% 0 0);
+
+    --color-destructive-foreground: oklch(93% 0 0);
+
+    --color-border: oklch(40% 0.005 260);
+    --color-input: oklch(40% 0.005 260);
+    --color-ring: oklch(75% 0 0);
+  }
+}
+
 body {
   @apply bg-background text-foreground;
 }

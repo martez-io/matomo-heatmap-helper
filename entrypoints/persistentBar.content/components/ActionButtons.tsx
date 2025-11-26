@@ -33,7 +33,7 @@ export function ActionButtons({
                     aria-label={isInteractiveMode ? 'Exit select mode' : 'Enter select mode'}
                     aria-pressed={isInteractiveMode}
                 >
-                    {isInteractiveMode ? <MagicPointerIcon className="size-4 animate-wiggle text-muted" /> : <MagicPointerIcon className="size-6" />}
+                    {isInteractiveMode ? <MagicPointerIcon className="size-4 animate-wiggle" /> : <MagicPointerIcon className="size-6" />}
                     <span>{isInteractiveMode ? 'Done selecting' : 'Select elements'}</span>
                 </Button>
             )}

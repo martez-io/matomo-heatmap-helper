@@ -345,7 +345,7 @@ export default function App() {
                         Developed with ❤️ by{' '}
                         <a
                             href="https://martez.io"
-                            className="text-foreground hover:underline transition-colors"
+                            className="text-foreground/80 hover:underline transition-colors"
                             target="_blank"
                             rel="noopener noreferrer"
                         >
