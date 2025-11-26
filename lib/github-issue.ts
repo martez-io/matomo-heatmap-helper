@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { getCurrentTab } from './messaging';
 import { logger } from './logger';
+import { getBrowserName, getBrowserEngine, isFirefox, isEdge, isSafari, isOpera } from './platform';
 
 export interface BugReportContext {
   errorMessage?: string;
@@ -18,47 +19,24 @@ export interface BrowserInfo {
 }
 
 /**
- * Get browser name from WXT build-time environment
- */
-function getBrowserName(): string {
-  if (import.meta.env.FIREFOX) return 'Firefox';
-  if (import.meta.env.EDGE) return 'Edge';
-  if (import.meta.env.SAFARI) return 'Safari';
-  if (import.meta.env.OPERA) return 'Opera';
-  if (import.meta.env.CHROME) return 'Chrome';
-  // Fallback to the BROWSER env var or 'Unknown'
-  return import.meta.env.BROWSER || 'Unknown';
-}
-
-/**
- * Get browser engine from WXT build-time environment
- */
-function getBrowserEngine(): string {
-  if (import.meta.env.FIREFOX) return 'Gecko';
-  if (import.meta.env.SAFARI) return 'WebKit';
-  // Chrome, Edge, Opera all use Chromium
-  return 'Chromium';
-}
-
-/**
- * Extract browser version from user agent (version still needs UA parsing)
+ * Extract browser version from user agent (requires UA parsing at runtime)
  */
 function getBrowserVersion(): string {
   const ua = navigator.userAgent;
 
-  if (import.meta.env.FIREFOX) {
+  if (isFirefox()) {
     const match = ua.match(/Firefox\/(\d+\.\d+)/);
     return match?.[1] ?? 'Unknown';
   }
-  if (import.meta.env.EDGE) {
+  if (isEdge()) {
     const match = ua.match(/Edg\/(\d+\.\d+)/);
     return match?.[1] ?? 'Unknown';
   }
-  if (import.meta.env.SAFARI) {
+  if (isSafari()) {
     const match = ua.match(/Version\/(\d+\.\d+)/);
     return match?.[1] ?? 'Unknown';
   }
-  if (import.meta.env.OPERA) {
+  if (isOpera()) {
     const match = ua.match(/OPR\/(\d+\.\d+)/);
     return match?.[1] ?? 'Unknown';
   }

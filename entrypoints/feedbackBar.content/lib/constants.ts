@@ -9,6 +9,7 @@
 
 // Re-export generateBugReportUrl for use as the issue URL generator
 export { generateBugReportUrl as getIssueUrl } from '@/lib/github-issue';
+import { isFirefox, isEdge } from '@/lib/platform';
 
 // =============================================================================
 // PLACEHOLDER CONFIGURATION - UPDATE BEFORE PUBLISHING
@@ -19,13 +20,13 @@ const FIREFOX_ADDON_SLUG = 'matomo-heatmap-helper';
 
 /**
  * Get the review URL for the current browser's extension store
- * Uses WXT's build-time environment variables for accurate detection
+ * Uses unified platform detection from @/lib/platform
  */
 export function getReviewUrl(): string {
-  if (import.meta.env.FIREFOX) {
+  if (isFirefox()) {
     return `https://addons.mozilla.org/firefox/addon/${FIREFOX_ADDON_SLUG}/reviews/`;
   }
-  if (import.meta.env.EDGE) {
+  if (isEdge()) {
     return `https://microsoftedge.microsoft.com/addons/detail/${CHROME_EXTENSION_ID}`;
   }
   // Chrome / Chromium default

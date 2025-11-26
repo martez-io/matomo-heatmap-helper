@@ -1,5 +1,6 @@
 import type { ProcessingStep } from '@/types/storage';
 import { BinocularsIcon, CameraIcon, CircleCheckBig, ExpandIcon, SearchCheckIcon } from 'lucide-react';
+import { getPlatformName } from '@/lib/platform';
 
 // Processing step configurations
 export const STEP_CONFIGS: Record<
@@ -46,10 +47,12 @@ export const STEP_ORDER: ProcessingStep[] = [
 ];
 
 // Carousel configurations
+const utmParams = `mtm_source=matomo-heatmap-helper&mtm_medium=${getPlatformName()}-extension&mtm_campaign=carousel`;
+
 export const CAROUSEL_MESSAGES = [
-    <span>Need Support? Hire an official <a className="underline" href="https://matomo.org/request-matomo-partner/" target="_blank" rel="noopener noreferrer">Matomo Partner</a> </span>,
-    <span>ROAS and Marketing Attribution in Matomo: <a className="underline" href="https://www.martez.io/" target="_blank" rel="noopener noreferrer">Join waitlist</a></span>,
-    <span>Want to become an official <a className="underline" href="https://matomo.org/matomo-partner-programme/" target="_blank" rel="noopener noreferrer">Matomo Partner</a>?</span>,
+    <span>Need Support? Hire an official <a className="underline" href={`https://matomo.org/request-matomo-partner/?${utmParams}`} target="_blank" rel="noopener noreferrer">Matomo Partner</a> </span>,
+    <span>ROAS and Marketing Attribution for Matomo: <a className="underline" href={`https://www.martez.io/?${utmParams}`} target="_blank" rel="noopener noreferrer">Join waitlist</a></span>,
+    <span>Want to become an official <a className="underline" href={`https://matomo.org/matomo-partner-programme/?${utmParams}`} target="_blank" rel="noopener noreferrer">Matomo Partner</a>?</span>,
 ];
 
 export const CAROUSEL_INTERVAL = 15000; // 15 seconds
