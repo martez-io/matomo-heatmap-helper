@@ -75,9 +75,14 @@ export interface StorageSchema {
 
   // Settings
   'settings:debugMode': boolean;
+  'settings:alwaysShowEntranceAnimation': boolean;
 
   // Enforcement
   'enforce:enabled': boolean;
+
+  // Entrance animation tracking
+  'state:hasSeenEntranceAnimation': boolean;
+  'state:animationPending': boolean; // Set when bar enabled from popup, cleared after animation
 
   // Feedback tracking
   'feedback:promptCount': number;           // Times review prompt shown (max 3)

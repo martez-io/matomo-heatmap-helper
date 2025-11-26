@@ -6,10 +6,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Settings, Trash2, Bug, ArrowRightLeft, X } from 'lucide-react';
+import { Settings, Trash2, Bug, ArrowRightLeft, X, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { createMatomoClient } from '@/lib/matomo-api';
-import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites, getDebugMode, setDebugMode, getEnforceTracker, setEnforceTracker, getEnforcedDomainMappings, removeEnforcedDomainMapping, clearAllEnforcedMappings } from '@/lib/storage';
+import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites, getDebugMode, setDebugMode, getEnforceTracker, setEnforceTracker, getEnforcedDomainMappings, removeEnforcedDomainMapping, clearAllEnforcedMappings, getAlwaysShowEntranceAnimation, setAlwaysShowEntranceAnimation } from '@/lib/storage';
 import { CredentialsForm } from '@/entrypoints/options/CredentialsForm';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -32,6 +32,7 @@ export default function App() {
     const [hasExistingCredentials, setHasExistingCredentials] = useState(false);
     const [debugModeEnabled, setDebugModeEnabled] = useState(false);
     const [enforceTrackerEnabled, setEnforceTrackerEnabled] = useState(false);
+    const [alwaysShowAnimation, setAlwaysShowAnimation] = useState(false);
     const [enforcedDomains, setEnforcedDomains] = useState<Array<{ domain: string; siteId: number; siteName: string }>>([]);
 
     // Load existing credentials and settings on mount
@@ -47,6 +48,9 @@ export default function App() {
 
         const enforceTracker = await getEnforceTracker();
         setEnforceTrackerEnabled(enforceTracker);
+
+        const alwaysAnimation = await getAlwaysShowEntranceAnimation();
+        setAlwaysShowAnimation(alwaysAnimation);
     }
 
     async function handleDebugModeChange(enabled: boolean) {
@@ -59,6 +63,12 @@ export default function App() {
         setEnforceTrackerEnabled(enabled);
         await setEnforceTracker(enabled);
         toast.success(`Enforce Matomo Tracker ${enabled ? 'enabled' : 'disabled'}`, { duration: 2000 });
+    }
+
+    async function handleAlwaysShowAnimationChange(enabled: boolean) {
+        setAlwaysShowAnimation(enabled);
+        await setAlwaysShowEntranceAnimation(enabled);
+        toast.success(`Entrance animation ${enabled ? 'always shown' : 'shown only on first open'}`, { duration: 2000 });
     }
 
     async function loadEnforcedDomains() {
@@ -247,6 +257,40 @@ export default function App() {
                                                     pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg
                                                     ring-0 transition-transform duration-200 ease-in-out
                                                     ${debugModeEnabled ? 'translate-x-4' : 'translate-x-0.5'}
+                                                `}
+                                            />
+                                        </button>
+                                    </label>
+
+                                    <Separator />
+
+                                    <label className="flex items-center justify-between gap-3 cursor-pointer group">
+                                        <div className="flex items-center gap-3">
+                                            <Sparkles className="h-4 w-4 text-muted-foreground" />
+                                            <div>
+                                                <p className="text-sm font-medium">Always Show Entrance Animation</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Show the mystical entrance animation every time (default: only on first open)
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={alwaysShowAnimation}
+                                            onClick={() => handleAlwaysShowAnimationChange(!alwaysShowAnimation)}
+                                            className={`
+                                                relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full
+                                                transition-colors duration-200 ease-in-out focus-visible:outline-none
+                                                focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                                                ${alwaysShowAnimation ? 'bg-primary' : 'bg-input'}
+                                            `}
+                                        >
+                                            <span
+                                                className={`
+                                                    pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg
+                                                    ring-0 transition-transform duration-200 ease-in-out
+                                                    ${alwaysShowAnimation ? 'translate-x-4' : 'translate-x-0.5'}
                                                 `}
                                             />
                                         </button>

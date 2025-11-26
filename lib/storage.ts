@@ -260,3 +260,48 @@ export async function clearAllEnforcedMappings(): Promise<void> {
 
   await setStorage('matomo:domainSiteMap', nonEnforcedMap);
 }
+
+/**
+ * Get always show entrance animation setting (defaults to false = only on first open)
+ */
+export async function getAlwaysShowEntranceAnimation(): Promise<boolean> {
+  const value = await getStorage('settings:alwaysShowEntranceAnimation');
+  return value ?? false;
+}
+
+/**
+ * Set always show entrance animation setting
+ */
+export async function setAlwaysShowEntranceAnimation(enabled: boolean): Promise<void> {
+  await setStorage('settings:alwaysShowEntranceAnimation', enabled);
+}
+
+/**
+ * Get whether user has seen the entrance animation
+ */
+export async function getHasSeenEntranceAnimation(): Promise<boolean> {
+  const value = await getStorage('state:hasSeenEntranceAnimation');
+  return value ?? false;
+}
+
+/**
+ * Mark that user has seen the entrance animation
+ */
+export async function setHasSeenEntranceAnimation(seen: boolean): Promise<void> {
+  await setStorage('state:hasSeenEntranceAnimation', seen);
+}
+
+/**
+ * Get whether animation is pending (triggered from popup)
+ */
+export async function getAnimationPending(): Promise<boolean> {
+  const value = await getStorage('state:animationPending');
+  return value ?? false;
+}
+
+/**
+ * Set animation pending flag (called when bar enabled from popup)
+ */
+export async function setAnimationPending(pending: boolean): Promise<void> {
+  await setStorage('state:animationPending', pending);
+}

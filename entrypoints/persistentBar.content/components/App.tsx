@@ -3,6 +3,7 @@
  * Assembles all components and manages state
  */
 
+import { useState } from 'react';
 import { useBarState } from '../hooks/useBarState';
 import {
     toggleInteractiveMode,
@@ -22,9 +23,18 @@ import { ProcessingView } from './ProcessingView';
 import { ErrorMessage } from './ErrorMessage';
 import { MinimizeTab } from './MinimizeTab';
 import { MessageCarousel } from './MessageCarousel';
+import { EntranceAnimation, useEntranceAnimation } from './EntranceAnimation';
 
-export function App() {
+function BarContainer() {
     const { state, dispatch } = useBarState();
+    const { isBarVisible } = useEntranceAnimation();
+    const [animationComplete, setAnimationComplete] = useState(false);
+
+    // Track when animation completes (isBarVisible stays true after animation)
+    if (isBarVisible && !animationComplete) {
+        // Small delay to ensure the entrance animation has finished
+        setTimeout(() => setAnimationComplete(true), 3000);
+    }
 
     logger.debug('App', 'Rendering with state:', {
         isMinimized: state.isMinimized,
@@ -42,10 +52,23 @@ export function App() {
         return null;
     }
 
+    // Determine transform based on animation and minimize state
+    const getTransformClass = () => {
+        if (!isBarVisible) {
+            // During entrance animation - bar is hidden below screen
+            return '-translate-x-1/2 translate-y-full';
+        }
+        if (state.isMinimized && animationComplete) {
+            // After animation, minimized
+            return '-translate-x-1/2 translate-y-full';
+        }
+        // Visible state
+        return '-translate-x-1/2 translate-y-0';
+    };
+
     return (
         <div
-            className={`fixed bottom-0 left-1/2 z-[999999] transition-transform duration-300 ease-in-out ${state.isMinimized ? '-translate-x-1/2 translate-y-full' : '-translate-x-1/2 translate-y-0'
-                }`}
+            className={`fixed bottom-0 left-1/2 z-[999999] transition-transform duration-[3000ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${getTransformClass()}`}
             role="region"
             aria-label="Matomo Heatmap Helper Controls"
         >
@@ -105,5 +128,13 @@ export function App() {
                 onToggle={() => toggleMinimized(state.isMinimized, dispatch)}
             />
         </div>
+    );
+}
+
+export function App() {
+    return (
+        <EntranceAnimation>
+            <BarContainer />
+        </EntranceAnimation>
     );
 }

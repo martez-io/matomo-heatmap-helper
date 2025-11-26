@@ -98,4 +98,199 @@
     user-select: text;
     -webkit-user-select: text;
   }
+
+  /* ========================================
+     Entrance Animation Styles
+     ======================================== */
+
+  /* Full-page overlay */
+  .entrance-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999998;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  /* Darkening background - smooth fade in/out */
+  .entrance-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at 50% 150%,
+      transparent 0%,
+      rgba(0, 0, 0, 0.3) 30%,
+      rgba(0, 0, 0, 1) 100%
+    );
+    opacity: 0;
+  }
+
+  .entrance-overlay[data-phase="darkening"]::before {
+    animation: overlay-fade-in 3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .entrance-overlay[data-phase="mystical-light"]::before {
+    opacity: 1;
+  }
+
+  .entrance-overlay[data-phase="bar-entering"]::before {
+    opacity: 1;
+  }
+
+  .entrance-overlay[data-phase="fading-out"]::before {
+    animation: overlay-fade-out 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes overlay-fade-in {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes overlay-fade-out {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* Mystical glow from bottom center - using primary (amber) colors */
+  .mystical-glow {
+    position: absolute;
+    bottom: -150px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.8);
+    width: 900px;
+    height: 500px;
+    background: radial-gradient(
+      ellipse at center bottom,
+      oklch(75% 0.18 75) 0%,
+      oklch(70% 0.15 60 / 0.6) 20%,
+      oklch(65% 0.12 45 / 0.3) 40%,
+      transparent 60%
+    );
+    filter: blur(60px);
+    opacity: 0;
+    transition: all 2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .entrance-overlay[data-phase="darkening"] .mystical-glow {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.8);
+  }
+
+  .entrance-overlay[data-phase="mystical-light"] .mystical-glow {
+    opacity: 0.6;
+    transform: translateX(-50%) translateY(-50px) scale(0.95);
+    transition: all 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .entrance-overlay[data-phase="bar-entering"] .mystical-glow {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-100px) scale(1.1);
+    transition: all 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .entrance-overlay[data-phase="fading-out"] .mystical-glow {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-150px) scale(1.2);
+    transition: all 2.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Floating particles / sparkles - using primary (amber) colors */
+  .particles {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .particle {
+    position: absolute;
+    bottom: -20px;
+    left: var(--x-start);
+    transform: translateX(-50%);
+    width: var(--size, 2px);
+    height: var(--size, 2px);
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 1) 0%,
+      oklch(85% 0.15 75 / 0.9) 25%,
+      oklch(75% 0.18 65 / 0.5) 50%,
+      transparent 100%
+    );
+    border-radius: 50%;
+    opacity: 0;
+    filter: blur(0.5px);
+    box-shadow:
+      0 0 4px rgba(255, 255, 255, 0.8),
+      0 0 8px oklch(75% 0.18 70 / 0.6),
+      0 0 12px oklch(70% 0.15 60 / 0.3);
+  }
+
+  .entrance-overlay[data-phase="darkening"] .particle,
+  .entrance-overlay[data-phase="mystical-light"] .particle,
+  .entrance-overlay[data-phase="bar-entering"] .particle {
+    animation: particle-rise var(--duration, 3s) linear forwards;
+    animation-delay: var(--delay);
+  }
+
+  .entrance-overlay[data-phase="fading-out"] .particle {
+    animation: particle-rise var(--duration, 3s) linear forwards, particle-fade-out 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation-delay: var(--delay), 0s;
+  }
+
+  @keyframes particle-fade-out {
+    0% {
+      opacity: inherit;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes particle-rise {
+    0% {
+      opacity: 0;
+      transform: translateY(0) scale(0.5);
+    }
+    5% {
+      opacity: 0.8;
+    }
+    15% {
+      opacity: 1;
+      transform: translateY(-10vh) scale(1);
+    }
+    85% {
+      opacity: 0.3;
+      transform: translateY(-55vh) scale(0.7);
+      left: var(--x-end);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-65vh) scale(0.5);
+      left: var(--x-end);
+    }
+  }
+
+  /* Bar wrapper animation - slide up from bottom, no opacity */
+  .entrance-bar-wrapper {
+    transition: transform 3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .entrance-bar-wrapper.bar-hidden {
+    transform: translateY(100%);
+  }
+
+  .entrance-bar-wrapper.bar-visible {
+    transform: translateY(0);
+  }
 }

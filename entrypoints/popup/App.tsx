@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { browser } from 'wxt/browser';
 import { Settings, Bug, Loader2 } from 'lucide-react';
-import { getStorage, setStorage, getCredentials, getAvailableSites, saveDomainSiteMapping } from '@/lib/storage';
+import { getStorage, setStorage, getCredentials, getAvailableSites, saveDomainSiteMapping, setAnimationPending } from '@/lib/storage';
 import { generateBugReportUrl } from '@/lib/github-issue';
 import { getCurrentTab } from '@/lib/messaging';
 import { resolveSiteForCurrentTab, extractDomain, type ResolutionResult } from '@/lib/site-resolver';
@@ -182,17 +182,29 @@ export default function App() {
 
     async function toggleBar(checked: boolean) {
         setBarEnabled(checked);
+
+        // Set animation pending flag when enabling (so entrance animation knows to play)
+        if (checked) {
+            await setAnimationPending(true);
+        }
+
         await setStorage('state:barVisible', checked);
 
-        // Reload current tab to apply changes
-        try {
-            const tab = await getCurrentTab();
-            if (tab?.id) {
-                await browser.tabs.reload(tab.id);
+        // Only reload when disabling the bar (to restore any locked/expanded elements)
+        // When enabling, the content script's storage watcher will mount the bar dynamically
+        if (!checked) {
+            try {
+                const tab = await getCurrentTab();
+                if (tab?.id) {
+                    await browser.tabs.reload(tab.id);
+                }
+            } catch (err) {
+                logger.error('Popup', 'Failed to reload tab:', err);
             }
-        } catch (err) {
-            logger.error('Popup', 'Failed to reload tab:', err);
         }
+
+        // Close the popup after toggling
+        window.close();
     }
 
     async function openSettings() {
