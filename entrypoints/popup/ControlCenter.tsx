@@ -30,10 +30,10 @@ export function ControlCenter({ barEnabled, toggleBar, siteInfo }: ControlCenter
                 <StatusSectionBody className="space-y-4 mt-3">
                     {/* Connected Site Badge */}
                     {siteInfo && (
-                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                            <MatomoIcon className="h-4 w-4 text-green-700" />
-                            <span className="text-sm font-medium text-green-800">{siteInfo.siteName}</span>
-                            <Badge variant="secondary" className="ml-auto text-[10px] bg-green-100 text-green-700 border-0">
+                        <div className="flex items-center gap-2 bg-success-50 border border-success-200 rounded-lg px-3 py-2">
+                            <MatomoIcon className="h-4 w-4 text-success-700" />
+                            <span className="text-sm font-medium text-success-800">{siteInfo.siteName}</span>
+                            <Badge variant="secondary" className="ml-auto text-[10px] bg-success-100 text-success-700 border-0">
                                 Connected
                             </Badge>
                         </div>

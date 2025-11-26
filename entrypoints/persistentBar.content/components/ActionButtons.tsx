@@ -33,7 +33,7 @@ export function ActionButtons({
                     aria-label={isInteractiveMode ? 'Exit select mode' : 'Enter select mode'}
                     aria-pressed={isInteractiveMode}
                 >
-                    {isInteractiveMode ? <MagicPointerIcon className="size-4 animate-wiggle text-gray-100" /> : <MagicPointerIcon className="size-6" />}
+                    {isInteractiveMode ? <MagicPointerIcon className="size-4 animate-wiggle text-muted" /> : <MagicPointerIcon className="size-6" />}
                     <span>{isInteractiveMode ? 'Done selecting' : 'Select elements'}</span>
                 </Button>
             )}
@@ -45,7 +45,6 @@ export function ActionButtons({
                 onClick={onTakeScreenshot}
                 disabled={isProcessing || !hasSelectedHeatmap}
                 aria-label="Take screenshot"
-                className="bg-orange-500 hover:bg-orange-600"
             >
                 {isProcessing ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

@@ -4,6 +4,18 @@
 
 import { logger } from '@/lib/logger';
 
+// Semantic colors for injected styles (must be hex values for host page injection)
+const COLORS = {
+  success: '#10b981',        // success-500 equivalent
+  successBg: 'rgba(16, 185, 129, 0.2)',
+  successGlow: 'rgba(46, 204, 113, 0.3)',
+  successGlowStrong: 'rgba(46, 204, 113, 0.5)',
+  primary: '#f59e0b',        // primary-500 equivalent
+  primaryLight: 'rgba(254, 154, 0, 0.3)',
+  primaryMedium: 'rgba(254, 154, 0, 0.5)',
+  primaryStrong: 'rgba(254, 154, 0, 0.8)',
+};
+
 /**
  * Inject CSS styles for lock indicators and animations
  */
@@ -30,8 +42,8 @@ export function injectStyles(): void {
       content: '';
       position: absolute;
       inset: 0;
-      border: 2px solid #10b981;
-      background: rgba(16, 185, 129, 0.2);
+      border: 2px solid ${COLORS.success};
+      background: ${COLORS.successBg};
       pointer-events: none;
       z-index: 999990;
       box-sizing: border-box;
@@ -42,8 +54,8 @@ export function injectStyles(): void {
       content: '';
       position: absolute;
       inset: 0;
-      border: 2px solid #10b981;
-      background: rgba(16, 185, 129, 0.2);
+      border: 2px solid ${COLORS.success};
+      background: ${COLORS.successBg};
       pointer-events: none;
       z-index: 999990;
       box-sizing: border-box;
@@ -116,11 +128,11 @@ export function showScanner(): void {
     height: 2px;
     background: linear-gradient(90deg,
       transparent 0%,
-      rgba(254, 154, 0, 0.3) 20%,
-      rgba(254, 154, 0, 0.8) 50%,
-      rgba(254, 154, 0, 0.3) 80%,
+      ${COLORS.primaryLight} 20%,
+      ${COLORS.primaryStrong} 50%,
+      ${COLORS.primaryLight} 80%,
       transparent 100%);
-    box-shadow: 0 0 20px rgba(254, 154, 0, 0.5);
+    box-shadow: 0 0 20px ${COLORS.primaryMedium};
     animation: matomo-scan 3s ease-in-out infinite;
     z-index: 999980;
   `;
@@ -189,8 +201,8 @@ export function showBorderGlow(): void {
     opacity: 0;
     transition: all 0.5s ease-in-out;
     box-shadow:
-      inset 0 0 80px 20px rgba(46, 204, 113, 0.3),
-      inset 0 0 40px 10px rgba(46, 204, 113, 0.5);
+      inset 0 0 80px 20px ${COLORS.successGlow},
+      inset 0 0 40px 10px ${COLORS.successGlowStrong};
   `;
 
   document.body.appendChild(overlay);

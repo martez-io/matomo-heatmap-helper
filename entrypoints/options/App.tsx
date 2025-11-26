@@ -176,7 +176,7 @@ export default function App() {
     return (
         <>
             <Toaster position="bottom-center" />
-            <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100/50">
+            <div className="min-h-screen bg-gradient-to-b from-muted to-muted/50">
                 <div className="max-w-2xl mx-auto py-16 px-4">
 
                     <Card className="border-border/40 shadow-sm">

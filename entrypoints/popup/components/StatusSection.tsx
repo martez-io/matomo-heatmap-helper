@@ -22,7 +22,7 @@ const StatusSectionHeader = React.forwardRef<
 >(({ className, icon: Icon, children, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("flex items-center gap-3 border-b border-gray-200 pb-2", className)}
+        className={cn("flex items-center gap-3 border-b border-border pb-2", className)}
         {...props}
     >
         {Icon && <div className="flex items-center justify-center bg-primary/10 rounded-md p-2"><Icon className="size-5 text-primary" /></div>}
@@ -32,7 +32,7 @@ const StatusSectionHeader = React.forwardRef<
 StatusSectionHeader.displayName = "StatusSectionHeader";
 
 const StatusSectionIcon = ({ icon: Icon }: { icon: LucideIcon }) => (
-    <Icon className="size-5 text-gray-600" />
+    <Icon className="size-5 text-muted-foreground" />
 );
 StatusSectionIcon.displayName = "StatusSectionIcon";
 
@@ -54,7 +54,7 @@ const StatusSectionDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <p
         ref={ref}
-        className={cn("text-xs text-gray-600", className)}
+        className={cn("text-xs text-muted-foreground", className)}
         {...props}
     />
 ));
@@ -66,7 +66,7 @@ const StatusSectionContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("bg-gray-100 p-4 rounded-lg", className)}
+        className={cn("bg-muted p-4 rounded-lg", className)}
         {...props}
     />
 ));

@@ -28,16 +28,16 @@ export function NoPermission({ currentUrl, handleRetry, isRetrying, openSettings
                     {/* Current URL */}
                     {currentUrl && (
                         <div className="space-y-1.5">
-                            <Label className="text-xs text-gray-500">Current page</Label>
-                            <p className="text-xs truncate bg-white px-2 py-1.5 rounded-md font-mono text-gray-700">
+                            <Label className="text-xs text-muted-foreground">Current page</Label>
+                            <p className="text-xs truncate bg-background px-2 py-1.5 rounded-md font-mono text-foreground">
                                 {currentUrl}
                             </p>
                         </div>
                     )}
 
-                    <Separator className="bg-gray-200" />
+                    <Separator className="bg-border" />
 
-                    <Alert className="border-red-200 bg-red-50 text-red-800 [&>svg]:text-red-600">
+                    <Alert className="border-destructive-200 bg-destructive-50 text-destructive-800 [&>svg]:text-destructive-600">
                         <ShieldX className="h-4 w-4" />
                         <AlertTitle className="text-sm font-medium">Permission Required</AlertTitle>
                         <AlertDescription className="text-xs">
@@ -48,17 +48,17 @@ export function NoPermission({ currentUrl, handleRetry, isRetrying, openSettings
 
                     {/* Potential fixes */}
                     <div className="space-y-2">
-                        <Label className="text-xs text-gray-600 font-medium flex items-center gap-1">
+                        <Label className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                             <HelpCircle className="h-3 w-3" />
                             How to fix
                         </Label>
-                        <ul className="text-xs text-gray-600 space-y-1.5 pl-1">
+                        <ul className="text-xs text-muted-foreground space-y-1.5 pl-1">
                             <li className="flex items-start gap-2">
-                                <span className="text-red-500 mt-0.5">1.</span>
+                                <span className="text-destructive mt-0.5">1.</span>
                                 <span>Ask a Matomo admin to grant you "Write" or "Admin" access</span>
                             </li>
                             <li className="flex items-start gap-2">
-                                <span className="text-red-500 mt-0.5">2.</span>
+                                <span className="text-destructive mt-0.5">2.</span>
                                 <span>Or use an API token from a user with sufficient permissions</span>
                             </li>
                         </ul>

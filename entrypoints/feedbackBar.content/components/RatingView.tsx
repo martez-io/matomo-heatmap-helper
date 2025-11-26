@@ -18,7 +18,7 @@ export function RatingView({ onThumbsUp, onThumbsDown, isExiting }: RatingViewPr
             className={`flex items-center justify-between gap-4 transition-opacity duration-150 ${isExiting ? 'opacity-0' : 'opacity-100'
                 }`}
         >
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-foreground">
                 Does the heatmap match the actual page?
             </span>
             <div className="flex gap-2">
@@ -26,7 +26,7 @@ export function RatingView({ onThumbsUp, onThumbsDown, isExiting }: RatingViewPr
                     variant="ghost"
                     size="sm"
                     onClick={onThumbsUp}
-                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="text-success-600 hover:text-success-700 hover:bg-success-50"
                 >
                     <ThumbsUp className="w-4 h-4 mr-1.5" />
                     Yes
@@ -35,7 +35,7 @@ export function RatingView({ onThumbsUp, onThumbsDown, isExiting }: RatingViewPr
                     variant="ghost"
                     size="sm"
                     onClick={onThumbsDown}
-                    className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted"
                 >
                     <ThumbsDown className="w-4 h-4 mr-1.5" />
                     No, view help

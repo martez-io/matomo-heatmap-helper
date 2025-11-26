@@ -3,6 +3,12 @@
  * Separate from fixers - this is UI feedback, not layout correction
  */
 
+// Semantic colors for injected styles (must be hex values for host page injection)
+const COLORS = {
+  success: '#10b981',        // success-500 equivalent
+  successBg: 'rgba(16, 185, 129, 0.2)',
+};
+
 export type IndicatorType = 'before' | 'after' | 'fallback';
 
 export interface LockIndicatorResult {
@@ -63,8 +69,8 @@ export function applyLockVisualIndicator(element: HTMLElement): LockIndicatorRes
     lockIcon.style.cssText = `
       position: absolute;
       inset: 0;
-      border: 2px solid #10b981;
-      background: rgba(16, 185, 129, 0.2);
+      border: 2px solid ${COLORS.success};
+      background: ${COLORS.successBg};
       pointer-events: none;
       z-index: 999990;
       box-sizing: border-box;

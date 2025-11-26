@@ -19,7 +19,7 @@ export function Unconfigured({ openSettings }: UnconfiguredProps) {
                     </div>
                 </StatusSectionHeader>
                 <StatusSectionBody>
-                    <p className="text-xs text-gray-600 mt-3">
+                    <p className="text-xs text-muted-foreground mt-3">
                         Thanks for installing the Matomo Heatmap Screenshots extension!
                         Open the settings and add your Matomo credentials to get started.
                     </p>
@@ -28,7 +28,7 @@ export function Unconfigured({ openSettings }: UnconfiguredProps) {
             <StatusSectionActions>
                 <Button
                     onClick={openSettings}
-                    className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0"
+                    className="flex-1 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white border-0"
                 >
                     <Settings className="size-3.5" />
                     Open Settings

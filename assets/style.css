@@ -25,6 +25,54 @@
   --color-success-800: oklch(44.8% .119 151.328);
   --color-success-900: oklch(39.1% .098 152.566);
 
+  /* Custom info colors (blue) */
+  --color-info-50: oklch(97% .014 254);
+  --color-info-100: oklch(93.2% .032 255);
+  --color-info-200: oklch(88.2% .059 254);
+  --color-info-300: oklch(80.9% .105 251);
+  --color-info-400: oklch(70.7% .165 254);
+  --color-info-500: oklch(62.3% .209 259);
+  --color-info-600: oklch(54.6% .245 262);
+  --color-info-700: oklch(48.8% .243 264);
+  --color-info-800: oklch(42.4% .199 265);
+  --color-info-900: oklch(37.9% .146 265);
+
+  /* Custom tracking colors (purple) */
+  --color-tracking-50: oklch(97.7% .014 308);
+  --color-tracking-100: oklch(94.6% .033 307);
+  --color-tracking-200: oklch(90.2% .063 306);
+  --color-tracking-300: oklch(82.7% .119 306);
+  --color-tracking-400: oklch(71.4% .203 305);
+  --color-tracking-500: oklch(62.7% .265 303);
+  --color-tracking-600: oklch(55.8% .288 302);
+  --color-tracking-700: oklch(49.6% .265 301);
+  --color-tracking-800: oklch(43.8% .218 303);
+  --color-tracking-900: oklch(38.1% .176 304);
+
+  /* Custom warning colors (orange) */
+  --color-warning-50: oklch(98% .016 73);
+  --color-warning-100: oklch(95.4% .038 75);
+  --color-warning-200: oklch(90.1% .076 70);
+  --color-warning-300: oklch(83.7% .128 66);
+  --color-warning-400: oklch(75% .183 55);
+  --color-warning-500: oklch(70.5% .213 47);
+  --color-warning-600: oklch(64.6% .222 41);
+  --color-warning-700: oklch(55.3% .195 38);
+  --color-warning-800: oklch(47% .157 37);
+  --color-warning-900: oklch(40.8% .123 38);
+
+  /* Custom destructive colors (red) */
+  --color-destructive-50: oklch(97.1% .013 17);
+  --color-destructive-100: oklch(93.6% .032 17);
+  --color-destructive-200: oklch(88.5% .062 18);
+  --color-destructive-300: oklch(80.8% .114 19);
+  --color-destructive-400: oklch(70.4% .177 22);
+  --color-destructive-500: oklch(63.7% .217 25);
+  --color-destructive-600: oklch(57.7% .229 27);
+  --color-destructive-700: oklch(50.5% .213 27);
+  --color-destructive-800: oklch(44.4% .177 26);
+  --color-destructive-900: oklch(39.6% .141 25);
+
   /* shadcn/ui colors mapped to Tailwind v4 OKLCH format */
   --color-background: oklch(100% 0 0);
   --color-foreground: oklch(9% 0 0);
@@ -60,7 +108,7 @@
 }
 
 body {
-  @apply bg-white text-gray-900;
+  @apply bg-background text-foreground;
 }
 
 @layer utilities {
@@ -69,11 +117,11 @@ body {
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
-    @apply bg-gray-100 rounded;
+    @apply bg-muted rounded;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-gray-400 rounded hover:bg-gray-500;
+    @apply bg-muted-foreground/50 rounded hover:bg-muted-foreground/70;
   }
 
   .animate-wiggle {

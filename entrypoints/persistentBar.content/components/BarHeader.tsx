@@ -50,12 +50,12 @@ export function BarHeader({ siteName, isMinimized, scrolledCount, lockedCount, o
     };
 
     return (
-        <div className="flex items-center justify-between border-b-1 border-gray-200 pb-2">
+        <div className="flex items-center justify-between border-b-1 border-border pb-2">
             {/* Site name and logo */}
             <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 bg-secondary rounded-md py-2 px-3">
-                    <MatomoIcon className="h-5 w-5 text-gray-700" />
-                    <span className="text-sm font-medium text-gray-700">
+                    <MatomoIcon className="h-5 w-5 text-foreground" />
+                    <span className="text-sm font-medium text-foreground">
                         {siteName || 'Matomo Heatmap Helper'}
                     </span>
                 </div>
@@ -98,7 +98,7 @@ export function BarHeader({ siteName, isMinimized, scrolledCount, lockedCount, o
                     {menuOpen && (
                         <div
                             ref={menuRef}
-                            className="absolute right-0 bottom-full mb-1 z-50 w-42 bg-white border border-gray-300 rounded-md shadow-lg overflow-hidden"
+                            className="absolute right-0 bottom-full mb-1 z-50 w-42 bg-background border border-border rounded-md shadow-lg overflow-hidden"
                             onMouseDown={(e) => e.stopPropagation()}
                         >
                             <div className="flex flex-col p-1 gap-y-1">

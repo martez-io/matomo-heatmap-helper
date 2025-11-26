@@ -99,26 +99,26 @@ export function HeatmapDropdown({ heatmaps, selectedHeatmap, onSelect }: Heatmap
             {open && (
                 <div
                     ref={dropdownRef}
-                    className="absolute bottom-full left-0 right-0 mb-2 z-50 w-full min-w-[400px] bg-white border border-gray-300 rounded-md shadow-lg overflow-hidden"
+                    className="absolute bottom-full left-0 right-0 mb-2 z-50 w-full min-w-[400px] bg-background border border-border rounded-md shadow-lg overflow-hidden"
                     onMouseDown={(e) => e.stopPropagation()}
                 >
                     {/* Search Input */}
-                    <div className="flex items-center border-b border-gray-200 px-3 py-2">
-                        <Search className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
+                    <div className="flex items-center border-b border-border px-3 py-2">
+                        <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
                         <input
                             ref={inputRef}
                             type="text"
                             placeholder="Search heatmaps..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="flex h-8 w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+                            className="flex h-8 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                         />
                     </div>
 
                     {/* Items List */}
                     <div className="max-h-[300px] overflow-y-auto p-1">
                         {filteredHeatmaps.length === 0 ? (
-                            <div className="py-6 text-center text-sm text-gray-500">
+                            <div className="py-6 text-center text-sm text-muted-foreground">
                                 No heatmaps found.
                             </div>
                         ) : (
@@ -131,19 +131,19 @@ export function HeatmapDropdown({ heatmaps, selectedHeatmap, onSelect }: Heatmap
                                         onClick={() => handleSelect(heatmap)}
                                         className={cn(
                                             'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
-                                            'hover:bg-gray-100',
-                                            isSelected && 'bg-gray-50'
+                                            'hover:bg-muted',
+                                            isSelected && 'bg-muted/50'
                                         )}
                                     >
                                         <Check
                                             className={cn(
-                                                'mr-2 h-4 w-4 shrink-0 text-gray-900',
+                                                'mr-2 h-4 w-4 shrink-0 text-foreground',
                                                 isSelected ? 'opacity-100' : 'opacity-0'
                                             )}
                                         />
                                         <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="font-medium truncate text-gray-900">{heatmap.name}</span>
-                                            <span className="text-xs text-gray-500 truncate">{matchRules}</span>
+                                            <span className="font-medium truncate text-foreground">{heatmap.name}</span>
+                                            <span className="text-xs text-muted-foreground truncate">{matchRules}</span>
                                         </div>
                                     </div>
                                 );

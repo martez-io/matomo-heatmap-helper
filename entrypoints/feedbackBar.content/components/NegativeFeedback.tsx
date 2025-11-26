@@ -22,7 +22,7 @@ export function NegativeFeedback({ onReportIssue, onDismiss }: NegativeFeedbackP
     return (
         <div className="space-y-3 animate-slideUp w-full">
             {/* Header with dismiss button */}
-            <div className="flex items-start justify-start gap-x-2 w-full border-b border-gray-200 pb-2">
+            <div className="flex items-start justify-start gap-x-2 w-full border-b border-border pb-2">
                 <div className="flex items-center justify-center bg-primary/10 rounded-md p-2 mt-1"><HelpCircle className="size-5 text-primary" /></div>
                 <div className="flex flex-col">
                     <h2
@@ -30,7 +30,7 @@ export function NegativeFeedback({ onReportIssue, onDismiss }: NegativeFeedbackP
                     >
                         Follow these steps to fix the issue
                     </h2>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-muted-foreground">
                         If you still need help, please report the issue.
                     </p>
                 </div>
@@ -38,7 +38,7 @@ export function NegativeFeedback({ onReportIssue, onDismiss }: NegativeFeedbackP
                     variant="ghost"
                     size="icon-sm"
                     onClick={onDismiss}
-                    className="text-gray-400 hover:text-gray-600 -mt-1 -mr-1 ml-auto"
+                    className="text-muted-foreground hover:text-foreground -mt-1 -mr-1 ml-auto"
                 >
                     <X className="w-4 h-4" />
                 </Button>
@@ -47,12 +47,12 @@ export function NegativeFeedback({ onReportIssue, onDismiss }: NegativeFeedbackP
             {/* Troubleshooting checklist */}
             <Accordion type="single" collapsible className="w-full">
                 {TROUBLESHOOTING_ITEMS.map(({ issue, listItems }, i) => (
-                    <AccordionItem key={i} value={`item-${i}`} className="border-b border-gray-200">
+                    <AccordionItem key={i} value={`item-${i}`} className="border-b border-border">
                         <AccordionTrigger className="text-sm text-left hover:no-underline">
                             {issue}
                         </AccordionTrigger>
                         <AccordionContent>
-                            <ul className="list-disc pl-4 space-y-1 text-sm text-gray-600 pb-2">
+                            <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground pb-2">
                                 {listItems.map((item, j) => (
                                     <li key={j}>{item}</li>
                                 ))}
@@ -68,7 +68,7 @@ export function NegativeFeedback({ onReportIssue, onDismiss }: NegativeFeedbackP
                     variant="secondary"
                     size="sm"
                     onClick={onReportIssue}
-                    className="text-gray-700"
+                    className="text-foreground"
                 >
                     <Bug className="w-4 h-4 mr-1.5" />
                     Still stuck? Report Issue

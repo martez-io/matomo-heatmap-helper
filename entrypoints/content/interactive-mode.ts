@@ -3,6 +3,14 @@
  */
 
 import { setStorage } from '@/lib/storage';
+
+// Semantic colors for injected styles (must be hex values for host page injection)
+const COLORS = {
+  success: '#10b981',        // success-500 equivalent
+  successBg: 'rgba(16, 185, 129, 0.3)',
+  info: '#3b82f6',           // info-500 equivalent
+  infoBg: 'rgba(59, 130, 246, 0.3)',
+};
 import type { LockedElementData } from '@/types/storage';
 import { ScrollTracker, type ElementMetadata } from './state';
 import {
@@ -143,8 +151,8 @@ function handleInteractiveHover(event: MouseEvent): void {
     top: ${rect.top + scrollTop}px;
     width: ${rect.width}px;
     height: ${rect.height}px;
-    background: ${isLocked ? 'rgba(16, 185, 129, 0.3)' : 'rgba(59, 130, 246, 0.3)'};
-    border: 2px solid ${isLocked ? '#10b981' : '#3b82f6'};
+    background: ${isLocked ? COLORS.successBg : COLORS.infoBg};
+    border: 2px solid ${isLocked ? COLORS.success : COLORS.info};
     pointer-events: none;
     z-index: 999991;
     display: block;

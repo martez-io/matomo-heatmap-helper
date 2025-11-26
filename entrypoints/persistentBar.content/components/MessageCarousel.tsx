@@ -34,7 +34,7 @@ export function MessageCarousel() {
 
     return (
         <div
-            className="relative overflow-hidden bg-gradient-to-r from-orange-600 to-amber-600"
+            className="relative overflow-hidden bg-gradient-to-r from-primary-600 to-primary-700"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             role="region"

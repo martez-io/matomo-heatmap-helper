@@ -17,7 +17,7 @@
     /* Set explicit base styles for proper rendering in shadow DOM */
     font-size: 16px;
     line-height: 1.5;
-    color: #111827; /* gray-900 */
+    color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     /* Prevent page transforms/zoom from affecting shadow DOM */
@@ -48,7 +48,7 @@
 
   /* Focus visible styles */
   *:focus-visible {
-    outline: 2px solid #f97316; /* orange-500 */
+    outline: 2px solid var(--color-primary-500);
     outline-offset: 2px;
   }
 }

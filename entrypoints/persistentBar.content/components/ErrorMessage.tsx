@@ -20,7 +20,7 @@ export function ErrorMessage({ error, onDismiss }: ErrorMessageProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-5 w-5 p-0 hover:bg-red-100"
+          className="h-5 w-5 p-0 hover:bg-destructive-100"
           onClick={onDismiss}
           aria-label="Dismiss error"
         >

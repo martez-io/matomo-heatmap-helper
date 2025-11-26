@@ -23,8 +23,8 @@ export function SiteNotFound({ handleRetry, isRetrying, openMatomoSites }: SiteN
                     </div>
                 </StatusSectionHeader>
                 <StatusSectionBody>
-                    <h5 className="text-sm font-medium text-gray-600 mb-2 mt-3">Potential reasons:</h5>
-                    <ul className="text-xs text-gray-600 list-disc list-inside space-y-1">
+                    <h5 className="text-sm font-medium text-muted-foreground mb-2 mt-3">Potential reasons:</h5>
+                    <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
                         <li>This domain isn't added as a website in Matomo</li>
                         <li>The URL configured in Matomo doesn't match this page</li>
                         <li>You're on a local/staging environment not tracked</li>

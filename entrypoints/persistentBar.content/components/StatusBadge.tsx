@@ -19,25 +19,25 @@ const BADGE_CONFIG = {
         icon: <MouseScrollIcon />,
         getLabel: (count = 0) => count,
         getTooltip: (count = 0) => count === 1 ? '1 element with inner scroll detected' : `${count} elements with inner scroll detected`,
-        className: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100',
+        className: 'bg-info-100 text-info-700 border-info-200 hover:bg-info-100',
     },
     locked: {
         icon: <MagicPointerIcon />,
         getLabel: (count = 0) => count,
         getTooltip: (count = 0) => count === 1 ? '1 element locked' : `${count} elements locked`,
-        className: 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100',
+        className: 'bg-tracking-100 text-tracking-700 border-tracking-200 hover:bg-tracking-100',
     },
     processing: {
         icon: <Loader2 className="size-4 animate-spin" />,
         getLabel: () => 'Processing',
         getTooltip: () => 'Processing',
-        className: 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100',
+        className: 'bg-warning-100 text-warning-700 border-warning-200 hover:bg-warning-100',
     },
     error: {
         icon: <AlertCircle className="size-4" />,
         getLabel: () => 'Error',
         getTooltip: () => 'Error',
-        className: 'bg-red-100 text-red-700 border-red-200 hover:bg-red-100',
+        className: 'bg-destructive-100 text-destructive-700 border-destructive-200 hover:bg-destructive-100',
     },
 };
 

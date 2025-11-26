@@ -231,7 +231,7 @@ export default function App() {
                 return (
                     <div className="flex items-center justify-center py-8 space-x-2">
                         <Loader2 className="size-6 animate-spin text-primary-600" />
-                        <span className="text-sm text-gray-600">Getting things ready...</span>
+                        <span className="text-sm text-muted-foreground">Getting things ready...</span>
                     </div>
                 );
             case 'unconfigured':
@@ -293,14 +293,14 @@ function PopupHeader({
             <div className="flex items-start gap-2">
                 <img src="/logo.png" alt="Logo" className="size-11" />
                 <div>
-                    <h1 className="text-xl font-bold text-gray-900 -mb-1.5">Heatmap Helper</h1>
-                    <span className="text-[10px] text-gray-500 font-semibold">
+                    <h1 className="text-xl font-bold text-foreground -mb-1.5">Heatmap Helper</h1>
+                    <span className="text-[10px] text-muted-foreground font-semibold">
                         By Martez
                     </span>
                 </div>
                 <Badge
                     variant="default"
-                    className="mt-2 bg-gradient-to-r from-amber-500 to-amber-600 text-[8px] uppercase tracking-wide border-0 text-white"
+                    className="mt-2 bg-gradient-to-r from-primary-500 to-primary-600 text-[8px] uppercase tracking-wide border-0 text-white"
                 >
                     Beta
                 </Badge>
@@ -311,7 +311,7 @@ function PopupHeader({
                     size="icon"
                     onClick={onOpenBugReport}
                     title="Report a Bug"
-                    className="h-8 w-8 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
                 >
                     <Bug className="h-4 w-4" />
                 </Button>
@@ -320,7 +320,7 @@ function PopupHeader({
                     size="icon"
                     onClick={onOpenSettings}
                     title="Settings"
-                    className="h-8 w-8 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
                 >
                     <Settings className="h-4 w-4" />
                 </Button>
