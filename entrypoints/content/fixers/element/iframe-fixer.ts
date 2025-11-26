@@ -11,6 +11,7 @@ import { fixerRegistry } from '../registry';
 
 export const iframeFixer: ComposableFixer = {
   id: 'element:iframe',
+  title: 'Expand iframe',
   priority: 100,
   scope: 'element',
   composesFixers: ['element:height', 'element:overflow'],

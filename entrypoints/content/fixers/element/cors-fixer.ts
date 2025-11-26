@@ -85,6 +85,7 @@ function mightHaveCorsResources(context: FixerContext): boolean {
 
 export const corsFixer: Fixer = {
   id: 'element:cors',
+  title: 'Embed images',
   priority: 5, // Run early before other fixers modify the DOM
   scope: 'element',
 

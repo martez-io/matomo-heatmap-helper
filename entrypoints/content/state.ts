@@ -3,6 +3,8 @@
  */
 
 export interface ElementMetadata {
+  /** Unique ID for cross-context communication */
+  id: string;
   element: HTMLElement;
   selector: string;
   tag: string;
@@ -39,4 +41,11 @@ export const ScrollTracker = {
   // Interactive mode state
   isInteractiveMode: false,
   lockedElements: new Map<HTMLElement, ElementMetadata>(),
+  // Elements ignored/dismissed by user (keyed by element ID)
+  ignoredElements: new Set<string>(),
 };
+
+/** Generate a unique ID for an element */
+export function generateElementId(): string {
+  return crypto.randomUUID();
+}

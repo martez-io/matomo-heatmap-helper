@@ -49,6 +49,9 @@ export interface Fixer {
   /** Unique identifier for this fixer */
   readonly id: string;
 
+  /** Human-readable title describing what this fixer does (for UI display) */
+  readonly title: string;
+
   /** Priority for ordering (lower runs first) */
   readonly priority: number;
 

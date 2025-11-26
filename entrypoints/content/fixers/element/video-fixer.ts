@@ -11,6 +11,7 @@ import { fixerRegistry } from '../registry';
 
 export const videoFixer: ComposableFixer = {
   id: 'element:video',
+  title: 'Pause media',
   priority: 120,
   scope: 'element',
   composesFixers: ['element:height'],

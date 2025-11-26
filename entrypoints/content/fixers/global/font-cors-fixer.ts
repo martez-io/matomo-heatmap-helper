@@ -30,6 +30,7 @@ const STYLE_MARKER = 'data-mhh-font-cors-fix';
 
 export const fontCorsFixer: Fixer = {
   id: 'global:font-cors',
+  title: 'Embed fonts',
   priority: 20, // After relative-url (10), before other operations
   scope: 'global',
 

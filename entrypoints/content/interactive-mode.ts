@@ -12,7 +12,7 @@ const COLORS = {
   infoBg: 'rgba(59, 130, 246, 0.3)',
 };
 import type { LockedElementData } from '@/types/storage';
-import { ScrollTracker, type ElementMetadata } from './state';
+import { ScrollTracker, type ElementMetadata, generateElementId } from './state';
 import {
   getElementSelector,
   findConstrainingParents,
@@ -34,6 +34,11 @@ import {
 const lockIndicators = new Map<HTMLElement, LockIndicatorResult>();
 
 /**
+ * Track elements with temporarily removed href (to prevent navigation)
+ */
+const elementsWithRemovedHref = new Map<HTMLElement, string>();
+
+/**
  * Sync state to storage
  */
 async function syncStateToStorage(): Promise<void> {
@@ -53,6 +58,12 @@ async function syncStateToStorage(): Promise<void> {
  * Lock an element using the fixer pipeline
  */
 async function lockElement(element: HTMLElement): Promise<void> {
+  // Check if element is ignored
+  const existingId = element.dataset.mhhId;
+  if (existingId && ScrollTracker.ignoredElements.has(existingId)) {
+    return;
+  }
+
   // Apply all relevant fixers via pipeline (async for CORS and other async fixers)
   const fixResult = await applyFixers(element);
   storeFixResult(element, fixResult);
@@ -67,8 +78,13 @@ async function lockElement(element: HTMLElement): Promise<void> {
   const selector = getElementSelector(element);
   const parents = findConstrainingParents(element);
 
+  // Generate unique ID and store on element
+  const id = existingId || generateElementId();
+  element.dataset.mhhId = id;
+
   // Store metadata in ScrollTracker for UI/sync
   const metadata: ElementMetadata = {
+    id,
     element,
     selector,
     tag: element.tagName.toLowerCase(),
@@ -108,7 +124,50 @@ function unlockElement(element: HTMLElement): void {
   // Restore all fixers (self-contained restoration)
   restoreAndRemove(element);
 
+  // Restore href if we removed it
+  restoreAnchorNavigationForElement(element);
+
   logger.debug('Content', `Unlocked: ${getElementSelector(element)}`);
+}
+
+/**
+ * Temporarily disable navigation on anchor elements by removing href
+ */
+function disableAnchorNavigation(element: HTMLElement): void {
+  // Find the anchor element (could be the element itself or a parent)
+  const anchor = element.closest('a') as HTMLAnchorElement | null;
+  if (anchor && anchor.hasAttribute('href') && !elementsWithRemovedHref.has(anchor)) {
+    const href = anchor.getAttribute('href')!;
+    elementsWithRemovedHref.set(anchor, href);
+    anchor.removeAttribute('href');
+    // Store reference on the element for restoration
+    anchor.dataset.mhhOriginalHref = href;
+  }
+}
+
+/**
+ * Restore navigation on anchor elements by restoring href
+ */
+function restoreAnchorNavigation(): void {
+  // Restore href on all elements we've modified
+  elementsWithRemovedHref.forEach((href, anchor) => {
+    anchor.setAttribute('href', href);
+    delete anchor.dataset.mhhOriginalHref;
+  });
+  elementsWithRemovedHref.clear();
+}
+
+/**
+ * Restore navigation for a specific element (used when unlocking)
+ */
+function restoreAnchorNavigationForElement(element: HTMLElement): void {
+  const anchor = element.closest('a') as HTMLAnchorElement | null;
+  if (anchor && elementsWithRemovedHref.has(anchor)) {
+    const href = elementsWithRemovedHref.get(anchor)!;
+    anchor.setAttribute('href', href);
+    delete anchor.dataset.mhhOriginalHref;
+    elementsWithRemovedHref.delete(anchor);
+  }
 }
 
 /**
@@ -131,6 +190,9 @@ function handleInteractiveHover(event: MouseEvent): void {
   if (isPartOfPersistentBar(element)) {
     return;
   }
+
+  // Temporarily disable anchor navigation to prevent clicks from navigating
+  disableAnchorNavigation(element);
 
   const highlight = document.getElementById('matomo-highlight-overlay');
   const tooltip = document.getElementById('matomo-element-tooltip');
@@ -202,11 +264,14 @@ function handleInteractiveHover(event: MouseEvent): void {
 /**
  * Handle hover out events in interactive mode
  */
-function handleInteractiveHoverOut(_event: MouseEvent): void {
+function handleInteractiveHoverOut(): void {
   // Skip if scanner is active
   if (document.documentElement.classList.contains('mhh-scanner-active')) {
     return;
   }
+
+  // Restore anchor navigation when mouse leaves
+  restoreAnchorNavigation();
 
   const highlight = document.getElementById('matomo-highlight-overlay');
   const tooltip = document.getElementById('matomo-element-tooltip');
@@ -215,6 +280,28 @@ function handleInteractiveHoverOut(_event: MouseEvent): void {
   if (tooltip) tooltip.style.display = 'none';
 
   document.body.style.cursor = '';
+}
+
+/**
+ * Handle mousedown/mouseup events in interactive mode - prevent button/link activation
+ */
+function handleInteractiveMouseEvent(event: MouseEvent): void {
+  const element = event.target as HTMLElement;
+
+  // Skip our own elements
+  if (element.id === 'matomo-highlight-overlay' || element.id === 'matomo-element-tooltip') {
+    return;
+  }
+
+  // Skip persistent bar elements - allow normal behavior
+  if (isPartOfPersistentBar(element)) {
+    return;
+  }
+
+  // Prevent default behavior to stop button/link activation
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
 }
 
 /**
@@ -247,6 +334,7 @@ function handleInteractiveClick(event: MouseEvent): void {
   // These must be called synchronously before any async operations
   event.preventDefault();
   event.stopPropagation();
+  event.stopImmediatePropagation();
 
   // Toggle lock state (async operation)
   const toggleLock = async () => {
@@ -326,9 +414,11 @@ export function handleEnterInteractiveMode(): void {
   `;
   document.body.appendChild(tooltip);
 
-  // Attach event listeners
+  // Attach event listeners (capture phase to intercept before page handlers)
   document.addEventListener('mouseover', handleInteractiveHover, true);
   document.addEventListener('mouseout', handleInteractiveHoverOut, true);
+  document.addEventListener('mousedown', handleInteractiveMouseEvent, true);
+  document.addEventListener('mouseup', handleInteractiveMouseEvent, true);
   document.addEventListener('click', handleInteractiveClick, true);
   document.addEventListener('keydown', handleInteractiveKeydown);
 
@@ -345,6 +435,13 @@ export function handleExitInteractiveMode(): void {
   syncStateToStorage(); // Sync to storage
   dispatchStatusUpdate(); // Notify persistent bar
 
+  // Restore any hrefs we removed during hover
+  elementsWithRemovedHref.forEach((href, anchor) => {
+    anchor.setAttribute('href', href);
+    delete anchor.dataset.mhhOriginalHref;
+  });
+  elementsWithRemovedHref.clear();
+
   // Remove highlight overlay and tooltip
   const highlight = document.getElementById('matomo-highlight-overlay');
   if (highlight) highlight.remove();
@@ -355,6 +452,8 @@ export function handleExitInteractiveMode(): void {
   // Remove event listeners
   document.removeEventListener('mouseover', handleInteractiveHover, true);
   document.removeEventListener('mouseout', handleInteractiveHoverOut, true);
+  document.removeEventListener('mousedown', handleInteractiveMouseEvent, true);
+  document.removeEventListener('mouseup', handleInteractiveMouseEvent, true);
   document.removeEventListener('click', handleInteractiveClick, true);
   document.removeEventListener('keydown', handleInteractiveKeydown);
 

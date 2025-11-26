@@ -2,7 +2,7 @@
  * Scroll tracking functionality
  */
 
-import { ScrollTracker, type ElementMetadata } from './state';
+import { ScrollTracker, type ElementMetadata, generateElementId } from './state';
 import { storeOriginalState, getElementSelector, findConstrainingParents } from './dom-utils';
 import { dispatchStatusUpdate } from './events';
 import { logger } from '@/lib/logger';
@@ -28,13 +28,24 @@ export function handleScroll(event: Event): void {
       return;
     }
 
+    // Check if element was previously ignored (by checking existing ID)
+    const existingId = element.dataset.mhhId;
+    if (existingId && ScrollTracker.ignoredElements.has(existingId)) {
+      return;
+    }
+
     // Store original state BEFORE any modifications
     storeOriginalState(element);
 
     const selector = getElementSelector(element);
     const parents = findConstrainingParents(element);
 
+    // Generate unique ID and store on element
+    const id = existingId || generateElementId();
+    element.dataset.mhhId = id;
+
     const metadata: ElementMetadata = {
+      id,
       element,
       selector,
       tag: element.tagName.toLowerCase(),
@@ -47,7 +58,7 @@ export function handleScroll(event: Event): void {
 
     ScrollTracker.scrolledElements.set(element, metadata);
 
-    logger.debug('Content', `Detected: ${selector}`);
+    logger.debug('Content', `Detected: ${selector} (id: ${id})`);
 
     // Notify persistent bar
     dispatchStatusUpdate();
@@ -83,6 +94,7 @@ export function handleStartTracking(heatmapId: number): void {
   ScrollTracker.isTracking = true;
   ScrollTracker.startTime = Date.now();
   ScrollTracker.scrolledElements.clear();
+  ScrollTracker.ignoredElements.clear();
 
   // Attach scroll listeners to all elements and store references
   const allElements = document.querySelectorAll('*');

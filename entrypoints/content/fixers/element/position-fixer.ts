@@ -11,6 +11,7 @@ import { fixerRegistry } from '../registry';
 
 export const positionFixer: Fixer = {
   id: 'element:position',
+  title: 'Add position context',
   priority: 30,
   scope: 'element',
 

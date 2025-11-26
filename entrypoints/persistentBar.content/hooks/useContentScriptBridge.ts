@@ -6,28 +6,19 @@
 import { useEffect } from 'react';
 import { logger } from '@/lib/logger';
 import type { BarAction } from '../types';
+import type { SerializedElementInfo } from '@/types/elements';
 
 export function useContentScriptBridge(dispatch: React.Dispatch<BarAction>) {
   useEffect(() => {
     logger.debug('useContentScriptBridge', 'Setting up event listeners...');
 
-    // Listen for scroll count updates
-    const handleScrollUpdate = (event: CustomEvent) => {
-      const { count } = event.detail;
-      logger.debug('useContentScriptBridge', 'Scroll count updated:', count);
+    // Listen for element list updates
+    const handleElementListUpdate = (event: CustomEvent<{ elements: SerializedElementInfo[] }>) => {
+      const { elements } = event.detail;
+      logger.debug('useContentScriptBridge', 'Element list updated:', elements.length);
       dispatch({
-        type: 'UPDATE_SCROLL_COUNT',
-        payload: count,
-      });
-    };
-
-    // Listen for locked element count updates
-    const handleLockedUpdate = (event: CustomEvent) => {
-      const { count } = event.detail;
-      logger.debug('useContentScriptBridge', 'Locked count updated:', count);
-      dispatch({
-        type: 'UPDATE_LOCKED_COUNT',
-        payload: count,
+        type: 'UPDATE_ELEMENT_LIST',
+        payload: elements,
       });
     };
 
@@ -52,15 +43,13 @@ export function useContentScriptBridge(dispatch: React.Dispatch<BarAction>) {
     };
 
     // Add event listeners
-    window.addEventListener('mhh:scrollCountUpdate', handleScrollUpdate as EventListener);
-    window.addEventListener('mhh:lockedCountUpdate', handleLockedUpdate as EventListener);
+    window.addEventListener('mhh:elementListUpdate', handleElementListUpdate as EventListener);
     window.addEventListener('mhh:trackingChange', handleTrackingChange as EventListener);
     window.addEventListener('mhh:interactiveModeChange', handleInteractiveModeChange as EventListener);
 
     return () => {
       logger.debug('useContentScriptBridge', 'Cleaning up event listeners...');
-      window.removeEventListener('mhh:scrollCountUpdate', handleScrollUpdate as EventListener);
-      window.removeEventListener('mhh:lockedCountUpdate', handleLockedUpdate as EventListener);
+      window.removeEventListener('mhh:elementListUpdate', handleElementListUpdate as EventListener);
       window.removeEventListener('mhh:trackingChange', handleTrackingChange as EventListener);
       window.removeEventListener('mhh:interactiveModeChange', handleInteractiveModeChange as EventListener);
     };

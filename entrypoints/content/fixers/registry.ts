@@ -4,7 +4,7 @@
  * Supports both element-level and global fixers via scope filtering.
  */
 
-import type { Fixer, ComposableFixer } from './types';
+import type { Fixer, ComposableFixer, FixerContext } from './types';
 import { isComposableFixer } from './types';
 
 /**
@@ -81,6 +81,48 @@ class FixerRegistry {
   clear(): void {
     this.fixers.clear();
     this.sortedFixers = null;
+  }
+
+  /**
+   * Get titles of element fixers that would apply to a given element.
+   * Does NOT apply the fixes, just checks shouldApply().
+   * Respects composable fixer hierarchy (if a composable fixer applies,
+   * its composed base fixers are excluded from the result).
+   */
+  getApplicableFixerTitles(element: HTMLElement): string[] {
+    const computedStyle = window.getComputedStyle(element);
+    const context: FixerContext = {
+      element,
+      document: element.ownerDocument,
+      computedStyle,
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+    };
+
+    const titles: string[] = [];
+    const excludedIds = new Set<string>();
+    const elementFixers = this.getElementFixers();
+
+    // First pass: check composable fixers and collect excluded base fixer IDs
+    for (const fixer of elementFixers) {
+      if (isComposableFixer(fixer) && fixer.shouldApply(context)) {
+        titles.push(fixer.title);
+        // Exclude composed base fixers
+        fixer.composesFixers.forEach(id => excludedIds.add(id));
+      }
+    }
+
+    // Second pass: check remaining element fixers (skip excluded and composable)
+    for (const fixer of elementFixers) {
+      if (excludedIds.has(fixer.id)) continue;
+      if (isComposableFixer(fixer)) continue; // Already processed
+
+      if (fixer.shouldApply(context)) {
+        titles.push(fixer.title);
+      }
+    }
+
+    return titles;
   }
 }
 

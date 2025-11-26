@@ -10,6 +10,7 @@ import { fixerRegistry } from '../registry';
 
 export const overflowFixer: Fixer = {
   id: 'element:overflow',
+  title: 'Remove scroll',
   priority: 20,
   scope: 'element',
 

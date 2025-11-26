@@ -11,6 +11,7 @@ import { fixerRegistry } from '../registry';
 
 export const stickyHeaderFixer: ComposableFixer = {
   id: 'element:sticky-header',
+  title: 'Unstick header',
   priority: 110,
   scope: 'element',
   composesFixers: ['element:position'],

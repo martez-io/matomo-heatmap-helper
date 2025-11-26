@@ -11,6 +11,7 @@ import { fixerRegistry } from '../registry';
 
 export const heightFixer: Fixer = {
   id: 'element:height',
+  title: 'Fix height',
   priority: 10,
   scope: 'element',
 

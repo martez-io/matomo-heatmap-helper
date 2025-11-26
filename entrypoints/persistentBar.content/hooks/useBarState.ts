@@ -16,8 +16,7 @@ const initialState: BarState = {
   isVisible: true,
   selectedHeatmap: null,
   heatmaps: [],
-  scrolledCount: 0,
-  lockedCount: 0,
+  elements: [],
   isTracking: false,
   isInteractiveMode: false,
   isProcessing: false,
@@ -38,11 +37,8 @@ function barReducer(state: BarState, action: BarAction): BarState {
     case 'SELECT_HEATMAP':
       return { ...state, selectedHeatmap: action.payload };
 
-    case 'UPDATE_SCROLL_COUNT':
-      return { ...state, scrolledCount: action.payload };
-
-    case 'UPDATE_LOCKED_COUNT':
-      return { ...state, lockedCount: action.payload };
+    case 'UPDATE_ELEMENT_LIST':
+      return { ...state, elements: action.payload };
 
     case 'SET_TRACKING':
       return { ...state, isTracking: action.payload };

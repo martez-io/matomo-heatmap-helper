@@ -15,6 +15,7 @@ import { fixerRegistry } from '../registry';
 
 export const relativeUrlFixer: Fixer = {
   id: 'global:relative-url',
+  title: 'Convert relative URLs',
   priority: 10, // Run early to convert URLs before other operations
   scope: 'global',
 

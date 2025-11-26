@@ -21,6 +21,10 @@ describe('HeightFixer', () => {
       expect(heightFixer.id).toBe('element:height');
     });
 
+    it('should have correct title', () => {
+      expect(heightFixer.title).toBe('Fix height');
+    });
+
     it('should have priority 10', () => {
       expect(heightFixer.priority).toBe(10);
     });

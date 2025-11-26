@@ -14,7 +14,9 @@ import {
     openSettings,
     openBugReport,
     closeBar,
+    ignoreElement,
 } from '../lib/actions';
+import { ElementStack } from './ElementStack';
 import { logger } from '@/lib/logger';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { BarHeader } from './BarHeader';
@@ -76,12 +78,10 @@ function BarContainer() {
             <Card className="bg-background rounded-t-xl shadow-2xl border-primary border-2 rounded-b-none border-b-0 min-w-[min(90vw,600px)] max-w-[min(95vw,630px)]">
                 {/* Hide header during processing */}
                 {!(state.isProcessing && state.processingStep) && (
-                    <CardHeader className="pt-3 pb-6 px-3">
+                    <CardHeader className="pt-3 pb-2 px-3">
                         <BarHeader
                             siteName={state.siteName}
                             isMinimized={state.isMinimized}
-                            scrolledCount={state.scrolledCount}
-                            lockedCount={state.lockedCount}
                             onToggleMinimize={() => toggleMinimized(state.isMinimized, dispatch)}
                             onOpenSettings={() => openSettings(dispatch)}
                             onOpenBugReport={() => openBugReport(dispatch)}
@@ -90,22 +90,30 @@ function BarContainer() {
                     </CardHeader>
                 )}
 
-                <CardContent className="space-y-3 pb-6 px-3">
+                <CardContent className="space-y-3 pb-4 px-3">
                     {/* Normal mode: show heatmap selector and actions */}
                     {!(state.isProcessing && state.processingStep) && (
-                        <BarContent
-                            heatmaps={state.heatmaps}
-                            selectedHeatmap={state.selectedHeatmap}
-                            isInteractiveMode={state.isInteractiveMode}
-                            isProcessing={state.isProcessing}
-                            onSelectHeatmap={(heatmap) => selectHeatmap(heatmap, dispatch)}
-                            onToggleInteractive={() => toggleInteractiveMode(state.isInteractiveMode, dispatch)}
-                            onTakeScreenshot={() =>
-                                state.selectedHeatmap &&
-                                state.siteId &&
-                                takeScreenshot(state.selectedHeatmap, state.siteId, dispatch)
-                            }
-                        />
+                        <>
+                            <BarContent
+                                heatmaps={state.heatmaps}
+                                selectedHeatmap={state.selectedHeatmap}
+                                isInteractiveMode={state.isInteractiveMode}
+                                isProcessing={state.isProcessing}
+                                onSelectHeatmap={(heatmap) => selectHeatmap(heatmap, dispatch)}
+                                onToggleInteractive={() => toggleInteractiveMode(state.isInteractiveMode, dispatch)}
+                                onTakeScreenshot={() =>
+                                    state.selectedHeatmap &&
+                                    state.siteId &&
+                                    takeScreenshot(state.selectedHeatmap, state.siteId, dispatch)
+                                }
+                            />
+
+                            {/* Element list showing detected and locked elements */}
+                            <ElementStack
+                                elements={state.elements}
+                                onDismiss={ignoreElement}
+                            />
+                        </>
                     )}
 
                     {/* Processing mode: show clean single-step view */}

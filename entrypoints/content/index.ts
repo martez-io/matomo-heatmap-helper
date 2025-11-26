@@ -14,6 +14,7 @@ import {
   getLockedElementsStatus,
 } from './interactive-mode';
 import { injectStyles, showScanner, hideScanner, showBorderGlow } from './animations';
+import { dispatchStatusUpdate } from './events';
 import { logger } from '@/lib/logger';
 
 // Initialize fixers (registers all fixers to the registry)
@@ -138,6 +139,12 @@ function setupBarEventListeners(): void {
     }
   }) as EventListener);
 
+  // Listen for ignore element requests from persistent bar
+  window.addEventListener('mhh:ignoreElement', ((event: CustomEvent<{ id: string }>) => {
+    const { id } = event.detail;
+    handleIgnoreElement(id);
+  }) as EventListener);
+
   // Legacy event listeners (for backward compatibility)
   window.addEventListener('mhh:enterInteractiveMode', (() => {
     handleEnterInteractiveMode();
@@ -148,6 +155,46 @@ function setupBarEventListeners(): void {
   }) as EventListener);
 
   logger.debug('Content', 'Bar event listeners setup');
+}
+
+/**
+ * Handle ignoring an element - removes it from tracking and adds to ignored set
+ */
+function handleIgnoreElement(elementId: string): void {
+  logger.debug('Content', 'Ignoring element:', elementId);
+
+  // Add to ignored set
+  ScrollTracker.ignoredElements.add(elementId);
+
+  // Find and remove from scrolledElements
+  for (const [element, meta] of ScrollTracker.scrolledElements) {
+    if (meta.id === elementId) {
+      // Remove visual outline if any
+      element.style.outline = '';
+      element.style.outlineOffset = '';
+      ScrollTracker.scrolledElements.delete(element);
+      break;
+    }
+  }
+
+  // Find and remove from lockedElements (if locked)
+  for (const [element, meta] of ScrollTracker.lockedElements) {
+    if (meta.id === elementId) {
+      // Import and call unlock functionality would be circular, so do it inline
+      ScrollTracker.lockedElements.delete(element);
+      // Remove any visual indicator classes
+      element.classList.remove('mhh-locked-element');
+      element.classList.remove('mhh-locked-indicator-before');
+      element.classList.remove('mhh-locked-indicator-after');
+      // Remove fallback DOM element if exists
+      const lockIcon = element.querySelector('.matomo-lock-icon');
+      if (lockIcon) lockIcon.remove();
+      break;
+    }
+  }
+
+  // Dispatch update to bar
+  dispatchStatusUpdate();
 }
 
 /**

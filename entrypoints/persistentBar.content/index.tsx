@@ -93,18 +93,17 @@ async function mountBar(ctx: ContentScriptContext, siteId: number, siteName: str
   await storage.setItem('local:persistentBar:siteId', siteId);
   await storage.setItem('local:persistentBar:siteName', siteName);
 
-  // Trigger heatmap fetch for this site
-  logger.debug('PersistentBar', 'Fetching heatmaps for site...');
-  try {
-    await browser.runtime.sendMessage({
-      action: 'fetchHeatmaps',
-      siteId: siteId,
-      forceRefresh: false,
-    });
-    logger.debug('PersistentBar', 'Heatmaps fetch triggered');
-  } catch (fetchError) {
+  // Trigger heatmap fetch for this site (fire-and-forget, don't block UI mounting)
+  logger.debug('PersistentBar', 'Triggering heatmap fetch...');
+  browser.runtime.sendMessage({
+    action: 'fetchHeatmaps',
+    siteId: siteId,
+    forceRefresh: false,
+  }).then(() => {
+    logger.debug('PersistentBar', 'Heatmaps fetch completed');
+  }).catch((fetchError) => {
     logger.warn('PersistentBar', 'Failed to fetch heatmaps (will retry later):', fetchError);
-  }
+  });
 
   // Mount the React UI
   logger.debug('PersistentBar', 'Mounting UI...');

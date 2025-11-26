@@ -7,20 +7,17 @@ import { useState, useRef, useEffect } from 'react';
 import { Bug, ChevronDown, MoreHorizontal, Settings, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MatomoIcon } from '@/components/icons/MatomoIcon';
-import { StatusBadges } from './StatusBadges';
 
 interface BarHeaderProps {
     siteName: string | null;
     isMinimized: boolean;
-    scrolledCount: number;
-    lockedCount: number;
     onToggleMinimize: () => void;
     onOpenSettings: () => void;
     onOpenBugReport: () => void;
     onCloseBar: () => void;
 }
 
-export function BarHeader({ siteName, isMinimized, scrolledCount, lockedCount, onToggleMinimize, onOpenSettings, onOpenBugReport, onCloseBar }: BarHeaderProps) {
+export function BarHeader({ siteName, isMinimized, onToggleMinimize, onOpenSettings, onOpenBugReport, onCloseBar }: BarHeaderProps) {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -59,12 +56,6 @@ export function BarHeader({ siteName, isMinimized, scrolledCount, lockedCount, o
                         {siteName || 'Matomo Heatmap Helper'}
                     </span>
                 </div>
-
-                {/* Status badges */}
-                <StatusBadges
-                    scrolledCount={scrolledCount}
-                    lockedCount={lockedCount}
-                />
             </div>
 
             <div className="flex items-center gap-2">

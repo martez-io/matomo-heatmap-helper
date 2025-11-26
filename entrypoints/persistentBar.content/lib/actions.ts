@@ -180,6 +180,19 @@ export async function openBugReport(dispatch: React.Dispatch<BarAction>) {
 }
 
 /**
+ * Ignore/dismiss an element from being fixed
+ */
+export function ignoreElement(elementId: string): void {
+  logger.debug('Actions', 'Ignoring element:', elementId);
+
+  window.dispatchEvent(
+    new CustomEvent('mhh:ignoreElement', {
+      detail: { id: elementId },
+    })
+  );
+}
+
+/**
  * Close the persistent bar by toggling state:barVisible and reloading page
  */
 export async function closeBar(dispatch: React.Dispatch<BarAction>) {
