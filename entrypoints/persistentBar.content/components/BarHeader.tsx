@@ -6,10 +6,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bug, ChevronDown, MoreHorizontal, Settings, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { MatomoIcon } from '@/components/icons/MatomoIcon';
 
 interface BarHeaderProps {
-    siteName: string | null;
     isMinimized: boolean;
     onToggleMinimize: () => void;
     onOpenSettings: () => void;
@@ -17,7 +15,7 @@ interface BarHeaderProps {
     onCloseBar: () => void;
 }
 
-export function BarHeader({ siteName, isMinimized, onToggleMinimize, onOpenSettings, onOpenBugReport, onCloseBar }: BarHeaderProps) {
+export function BarHeader({ isMinimized, onToggleMinimize, onOpenSettings, onOpenBugReport, onCloseBar }: BarHeaderProps) {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -48,15 +46,8 @@ export function BarHeader({ siteName, isMinimized, onToggleMinimize, onOpenSetti
 
     return (
         <div className="flex items-center justify-between border-b-1 border-border pb-2">
-            {/* Site name and logo */}
-            <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 bg-secondary rounded-md py-2 px-3">
-                    <MatomoIcon className="h-5 w-5 text-foreground" />
-                    <span className="text-sm font-medium text-foreground">
-                        {siteName || 'Matomo Heatmap Helper'}
-                    </span>
-                </div>
-            </div>
+            {/* Logo */}
+            <img src={browser.runtime.getURL('/logo.png')} alt="Matomo Heatmap Helper" className="h-8" />
 
             <div className="flex items-center gap-2">
                 {/* Minimize button */}

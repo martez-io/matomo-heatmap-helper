@@ -14,6 +14,12 @@ export default defineConfig({
       48: '/icons/icon48.png',
       128: '/icons/icon128.png',
     },
+    web_accessible_resources: [
+      {
+        matches: ['<all_urls>'],
+        resources: ['/logo.png'],
+      },
+    ],
   },
   vite: () => ({
     optimizeDeps: {

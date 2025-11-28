@@ -80,7 +80,6 @@ function BarContainer() {
                 {!(state.isProcessing && state.processingStep) && (
                     <CardHeader className="pt-3 pb-2 px-3">
                         <BarHeader
-                            siteName={state.siteName}
                             isMinimized={state.isMinimized}
                             onToggleMinimize={() => toggleMinimized(state.isMinimized, dispatch)}
                             onOpenSettings={() => openSettings(dispatch)}
