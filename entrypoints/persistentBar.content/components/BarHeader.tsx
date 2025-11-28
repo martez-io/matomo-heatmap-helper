@@ -50,18 +50,6 @@ export function BarHeader({ isMinimized, onToggleMinimize, onOpenSettings, onOpe
             <img src={browser.runtime.getURL('/logo.png')} alt="Matomo Heatmap Helper" className="h-8" />
 
             <div className="flex items-center gap-2">
-                {/* Minimize button */}
-                <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={onToggleMinimize}
-                    aria-label={isMinimized ? 'Expand bar' : 'Minimize bar'}
-                    title="Minimize bar"
-                >
-                    <ChevronDown className="h-4 w-4" />
-                </Button>
-
                 {/* Menu button - Shadow DOM compatible */}
                 <div className="relative">
                     <Button
@@ -111,7 +99,19 @@ export function BarHeader({ isMinimized, onToggleMinimize, onOpenSettings, onOpe
                             </div>
                         </div>
                     )}
+
                 </div>
+                {/* Minimize button */}
+                <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={onToggleMinimize}
+                    aria-label={isMinimized ? 'Expand bar' : 'Minimize bar'}
+                    title="Minimize bar"
+                >
+                    <ChevronDown className="h-4 w-4" />
+                </Button>
             </div>
 
         </div>
