@@ -46,8 +46,21 @@ export function BarHeader({ isMinimized, onToggleMinimize, onOpenSettings, onOpe
 
     return (
         <div className="flex items-center justify-between border-b-1 border-border pb-2">
-            {/* Logo */}
-            <img src={browser.runtime.getURL('/logo.png')} alt="Matomo Heatmap Helper" className="h-8" />
+            {/* Logo and title */}
+            <a
+                href="https://martez.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 no-underline select-none"
+            >
+                <img src={browser.runtime.getURL('/logo.png')} alt="Logo" className="size-9" />
+                <div>
+                    <h1 className="text-base font-bold text-foreground -mb-3">Heatmap Helper</h1>
+                    <span className="text-[9px] text-muted-foreground font-semibold">
+                        By Martez
+                    </span>
+                </div>
+            </a>
 
             <div className="flex items-center gap-2">
                 {/* Menu button - Shadow DOM compatible */}
