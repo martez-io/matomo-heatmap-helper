@@ -39,7 +39,10 @@ export function HeatmapDropdown({ heatmaps, selectedHeatmap, onSelect }: Heatmap
     const filteredHeatmaps = heatmaps.filter((heatmap) => {
         const searchTerm = search.toLowerCase();
         const matchRules = formatMatchRules(heatmap.match_page_rules).toLowerCase();
-        return heatmap.name.toLowerCase().includes(searchTerm) || matchRules.includes(searchTerm);
+        const idString = String(heatmap.idsitehsr);
+        return heatmap.name.toLowerCase().includes(searchTerm)
+            || matchRules.includes(searchTerm)
+            || idString.includes(searchTerm);
     });
 
     // Handle click outside to close
@@ -142,7 +145,9 @@ export function HeatmapDropdown({ heatmaps, selectedHeatmap, onSelect }: Heatmap
                                             )}
                                         />
                                         <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="font-medium truncate text-foreground">{heatmap.name}</span>
+                                            <span className="font-medium truncate text-foreground">
+                                                {heatmap.name} <span className="text-muted-foreground font-normal">#{heatmap.idsitehsr}</span>
+                                            </span>
                                             <span className="text-xs text-muted-foreground truncate">{matchRules}</span>
                                         </div>
                                     </div>
