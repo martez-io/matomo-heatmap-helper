@@ -16,7 +16,7 @@ export function ProcessingView({ currentStep }: ProcessingViewProps) {
 
     return (
         <div
-            className="flex flex-col items-start justify-start mt-3"
+            className="flex flex-col items-start justify-start mt-3 pt-3"
             role="status"
             aria-live="polite"
             aria-label={`Processing step ${currentIndex + 1} of ${totalSteps}: ${stepConfig.label}`}
