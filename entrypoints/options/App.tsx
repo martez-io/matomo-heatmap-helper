@@ -9,13 +9,24 @@ import { useState, useEffect } from 'react';
 import { Settings, Trash2, Bug, ArrowRightLeft, X, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { createMatomoClient } from '@/lib/matomo-api';
-import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites, getDebugMode, setDebugMode, getEnforceTracker, setEnforceTracker, getEnforcedDomainMappings, removeEnforcedDomainMapping, clearAllEnforcedMappings, getAlwaysShowEntranceAnimation, setAlwaysShowEntranceAnimation } from '@/lib/storage';
+import { getCredentials, saveCredentials, clearCredentials, saveAvailableSites, getDebugMode, setDebugMode, getEnforceTracker, setEnforceTracker, getEnforcedDomainMappings, removeEnforcedDomainMapping, clearAllEnforcedMappings, getAlwaysShowEntranceAnimation, setAlwaysShowEntranceAnimation, clearAllData } from '@/lib/storage';
 import { CredentialsForm } from '@/entrypoints/options/CredentialsForm';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Toaster } from '@/components/ui/sonner';
 import { Collapsible } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 type ValidationState = 'idle' | 'loading' | 'validated' | 'credentials-changed' | 'error';
 
@@ -34,6 +45,7 @@ export default function App() {
     const [enforceTrackerEnabled, setEnforceTrackerEnabled] = useState(false);
     const [alwaysShowAnimation, setAlwaysShowAnimation] = useState(false);
     const [enforcedDomains, setEnforcedDomains] = useState<Array<{ domain: string; siteId: number; siteName: string }>>([]);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Load existing credentials and settings on mount
     useEffect(() => {
@@ -86,6 +98,22 @@ export default function App() {
         await clearAllEnforcedMappings();
         await loadEnforcedDomains();
         toast.success('Cleared all enforced domain mappings', { duration: 2000 });
+    }
+
+    async function handleDeleteAllData() {
+        await clearAllData();
+        // Reset all local state
+        setCurrentCredentials(null);
+        setValidatedCredentials(null);
+        setValidationStatus('idle');
+        setHasExistingCredentials(false);
+        setDebugModeEnabled(false);
+        setEnforceTrackerEnabled(false);
+        setAlwaysShowAnimation(false);
+        setEnforcedDomains([]);
+        setShowDeleteConfirm(false);
+
+        toast.success('All extension data has been deleted', { duration: 3000 });
     }
 
     // Detect credential changes to re-enable validation button
@@ -377,6 +405,45 @@ export default function App() {
                                             )}
                                         </div>
                                     )}
+
+                                    <Separator />
+
+                                    {/* Delete All Data */}
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <Trash2 className="h-4 w-4" />
+                                            <div>
+                                                <p className="text-sm font-medium">Delete All Data</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Permanently remove all credentials, settings, and cached data
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant='secondary' size="sm">Delete</Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Delete all extension data?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will permanently delete all your Matomo credentials, cached sites,
+                                                        settings, and preferences. This action cannot be undone.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={handleDeleteAllData}
+                                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                    >
+                                                        Delete Everything
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
                                 </div>
                             </Collapsible>
                         </CardContent>

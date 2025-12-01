@@ -4,7 +4,8 @@
  */
 
 import { useReducer, useEffect } from 'react';
-import { storage } from 'wxt/utils/storage';
+import { get } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 import { logger } from '@/lib/logger';
 import type { BarState, BarAction } from '../types';
 import type { MatomoHeatmap } from '@/types/matomo';
@@ -79,27 +80,17 @@ export function useBarState() {
     const loadInitialState = async () => {
       try {
         // Load site info first (needed to lookup correct heatmaps from cache)
-        const siteId = await storage.getItem<number>('local:persistentBar:siteId');
-        const siteName = await storage.getItem<string>('local:persistentBar:siteName');
+        const siteId = await get(S.PERSISTENT_BAR_SITE_ID);
+        const siteName = await get(S.PERSISTENT_BAR_SITE_NAME);
 
         // Load heatmaps cache (Record keyed by siteId)
-        const heatmapCache = await storage.getItem<
-          Record<
-            number,
-            {
-              heatmaps: MatomoHeatmap[];
-              timestamp: number;
-            }
-          >
-        >('local:cache:heatmaps');
+        const heatmapCache = await get(S.HEATMAPS_CACHE);
 
         // Extract heatmaps for this specific site
         const siteHeatmaps = siteId && heatmapCache?.[siteId]?.heatmaps ? heatmapCache[siteId].heatmaps : [];
 
         // Load selected heatmap ID
-        const selectedHeatmapId = await storage.getItem<number>(
-          'local:ui:selectedHeatmapId'
-        );
+        const selectedHeatmapId = await get(S.SELECTED_HEATMAP);
 
         logger.debug('useBarState', 'Initial load:', {
           heatmapCount: siteHeatmaps.length,

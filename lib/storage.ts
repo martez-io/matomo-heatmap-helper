@@ -4,6 +4,53 @@
 
 import { storage } from 'wxt/utils/storage';
 import type { StorageSchema, DomainSiteMapping } from '@/types/storage';
+import { ALL_STORAGE_KEYS } from '@/lib/storage-keys';
+
+// ─── New API with constants ──────────────────────────────────────────────────
+// Usage: import { S } from '@/lib/storage-keys'; import { get, set } from '@/lib/storage';
+//        const barVisible = await get(S.BAR_VISIBLE);  // Returns boolean, never null
+//        await set(S.BAR_VISIBLE, true);
+
+/**
+ * Get a value from storage using a storage entry constant
+ * Returns the default value if unset - no more null checks!
+ */
+export async function get<T>(entry: { key: string; default: T }): Promise<T> {
+  const value = await storage.getItem<T>(`local:${entry.key}`);
+  return (value ?? entry.default) as T;
+}
+
+/**
+ * Set a value in storage using a storage entry constant
+ */
+export async function set<T>(entry: { key: string; default: T }, value: T): Promise<void> {
+  await storage.setItem(`local:${entry.key}`, value);
+}
+
+/**
+ * Remove a value from storage using a storage entry constant
+ */
+export async function remove(entry: { key: string; default: unknown }): Promise<void> {
+  await storage.removeItem(`local:${entry.key}`);
+}
+
+/**
+ * Watch for changes to a storage key using a storage entry constant
+ */
+export function watch<T>(
+  entry: { key: string; default: T },
+  callback: (newValue: T, oldValue: T) => void
+) {
+  return storage.watch<T>(`local:${entry.key}`, (newValue, oldValue) => {
+    // Apply defaults to ensure callback always receives non-null values
+    callback(
+      (newValue ?? entry.default) as T,
+      (oldValue ?? entry.default) as T
+    );
+  });
+}
+
+// ─── Legacy API (still works, migrate gradually) ─────────────────────────────
 
 /**
  * Get a value from storage with type safety
@@ -304,4 +351,14 @@ export async function getAnimationPending(): Promise<boolean> {
  */
 export async function setAnimationPending(pending: boolean): Promise<void> {
   await setStorage('state:animationPending', pending);
+}
+
+/**
+ * Clear ALL extension data from storage
+ * Automatically clears all keys defined in storage-keys.ts
+ */
+export async function clearAllData(): Promise<void> {
+  await Promise.all(
+    ALL_STORAGE_KEYS.map(key => storage.removeItem(`local:${key}`))
+  );
 }

@@ -4,7 +4,8 @@
  */
 
 import { useState } from 'react';
-import { storage } from 'wxt/utils/storage';
+import { get, set } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 import { FeedbackBar } from './FeedbackBar';
 import { RatingView } from './RatingView';
 import { PositiveFeedback } from './PositiveFeedback';
@@ -28,16 +29,16 @@ export function App({ heatmapId, onDismiss }: AppProps) {
      * Only prompt for review up to 3 times, then just show thanks
      */
     const handleThumbsUp = async () => {
-        const promptCount = (await storage.getItem<number>('local:feedback:promptCount')) ?? 0;
-        const reviewClicked = (await storage.getItem<boolean>('local:feedback:reviewClicked')) ?? false;
+        const promptCount = await get(S.FEEDBACK_COUNT);
+        const reviewClicked = await get(S.REVIEW_CLICKED);
 
         const shouldPrompt = promptCount < 3 && !reviewClicked;
 
         if (shouldPrompt) {
-            await storage.setItem<number>('local:feedback:promptCount', promptCount + 1);
+            await set(S.FEEDBACK_COUNT, promptCount + 1);
         }
 
-        setShowReviewPrompt(false);
+        setShowReviewPrompt(shouldPrompt);
         setStep('positive');
     };
 
@@ -57,7 +58,7 @@ export function App({ heatmapId, onDismiss }: AppProps) {
      * Handle review click - mark as clicked, open store
      */
     const handleReviewClick = async () => {
-        await storage.setItem<boolean>('local:feedback:reviewClicked', true);
+        await set(S.REVIEW_CLICKED, true);
         window.open(getReviewUrl(), '_blank');
         handleDismiss();
     };

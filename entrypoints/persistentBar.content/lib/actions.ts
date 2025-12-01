@@ -3,8 +3,9 @@
  * Communicates with main content script via custom events
  */
 
-import { storage } from 'wxt/utils/storage';
 import { browser } from 'wxt/browser';
+import { set } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 import { logger } from '@/lib/logger';
 import type { MatomoHeatmap } from '@/types/matomo';
 import type { BarAction } from '../types';
@@ -42,7 +43,7 @@ export async function selectHeatmap(
   logger.debug('Actions', 'Selecting heatmap:', heatmap.idsitehsr);
 
   // Save to storage
-  await storage.setItem('local:ui:selectedHeatmapId', heatmap.idsitehsr);
+  await set(S.SELECTED_HEATMAP, heatmap.idsitehsr);
 
   // Update local state
   dispatch({
@@ -201,7 +202,7 @@ export async function closeBar(dispatch: React.Dispatch<BarAction>) {
     window.dispatchEvent(new CustomEvent('mhh:stopTracking'));
 
     // Toggle bar visibility in storage
-    await storage.setItem('local:state:barVisible', false);
+    await set(S.BAR_VISIBLE, false);
 
     logger.debug('Actions', 'Closing bar and reloading page');
 

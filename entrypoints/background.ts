@@ -1,7 +1,8 @@
 import { browser } from 'wxt/browser';
 import { ScreenshotStateMachine } from './background/ScreenshotStateMachine';
 import { fetchCorsResources, fetchCssText } from './background/cors-fetcher';
-import { getStorage, getCredentials, setStorage } from '@/lib/storage';
+import { get, set, getCredentials } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 import { createMatomoClient } from '@/lib/matomo-api';
 import { resolveSiteForUrl } from '@/lib/site-resolver';
 import { generateBugReportUrl } from '@/lib/github-issue';
@@ -32,7 +33,7 @@ export default defineBackground({
     // Handle tab updates (detect navigation during screenshot)
     browser.tabs.onUpdated.addListener(async (tabId, changeInfo, _tab) => {
       if (changeInfo.status === 'loading') {
-        const progress = await getStorage('state:screenshotInProgress');
+        const progress = await get(S.SCREENSHOT_PROGRESS);
         if (progress && progress.tabId === tabId) {
           logger.warn('Background', 'Page navigation during screenshot, cancelling');
           await screenshotMachine.cancel();
@@ -42,7 +43,7 @@ export default defineBackground({
 
     // Handle tab removal
     browser.tabs.onRemoved.addListener(async (tabId) => {
-      const progress = await getStorage('state:screenshotInProgress');
+      const progress = await get(S.SCREENSHOT_PROGRESS);
       if (progress && progress.tabId === tabId) {
         logger.warn('Background', 'Tab closed during screenshot, cancelling');
         await screenshotMachine.cancel();
@@ -111,8 +112,8 @@ async function fetchHeatmaps(siteId: number, forceRefresh?: boolean): Promise<Ba
 
     // Check cache unless force refresh
     if (!forceRefresh) {
-      const cache = await getStorage('cache:heatmaps');
-      if (cache && cache[siteId]) {
+      const cache = await get(S.HEATMAPS_CACHE);
+      if (cache[siteId]) {
         const isFresh = Date.now() - cache[siteId].timestamp < 5 * 60 * 1000;
         if (isFresh) {
           logger.debug('Background', 'Using cached heatmaps for site', siteId);
@@ -126,12 +127,16 @@ async function fetchHeatmaps(siteId: number, forceRefresh?: boolean): Promise<Ba
     const client = createMatomoClient(creds.apiUrl, creds.authToken);
     const heatmaps = await client.getHeatmaps(siteId);
 
+    // Strip large fields before caching to avoid storage quota errors
+    // page_treemirror can be several MB per heatmap (DOM snapshots)
+    const strippedHeatmaps = heatmaps.map(({ page_treemirror, ...rest }) => rest);
+
     // Update cache
-    const existingCache = (await getStorage('cache:heatmaps')) || {};
-    await setStorage('cache:heatmaps', {
+    const existingCache = await get(S.HEATMAPS_CACHE);
+    await set(S.HEATMAPS_CACHE, {
       ...existingCache,
       [siteId]: {
-        heatmaps,
+        heatmaps: strippedHeatmaps,
         timestamp: Date.now(),
       },
     });

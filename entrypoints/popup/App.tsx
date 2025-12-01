@@ -5,7 +5,8 @@
 import { useState, useEffect } from 'react';
 import { browser } from 'wxt/browser';
 import { Settings, Bug, Loader2 } from 'lucide-react';
-import { getStorage, setStorage, getCredentials, getAvailableSites, saveDomainSiteMapping, setAnimationPending } from '@/lib/storage';
+import { get, set, getCredentials, getAvailableSites, saveDomainSiteMapping, setAnimationPending } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 import { generateBugReportUrl } from '@/lib/github-issue';
 import { getCurrentTab } from '@/lib/messaging';
 import { resolveSiteForCurrentTab, extractDomain, type ResolutionResult } from '@/lib/site-resolver';
@@ -59,11 +60,11 @@ export default function App() {
         }
 
         // Get current bar state
-        const barVisible = await getStorage('state:barVisible');
-        setBarEnabled(barVisible === true);
+        const barVisible = await get(S.BAR_VISIBLE);
+        setBarEnabled(barVisible);
 
         // Check if enforce mode is enabled
-        const enforceEnabled = await getStorage('enforce:enabled');
+        const enforceEnabled = await get(S.ENFORCE_ENABLED);
         logger.debug('Popup', 'Enforce mode:', enforceEnabled);
 
         // Pre-fetch sites if enforce mode is enabled (to avoid duplicate API calls)
@@ -188,7 +189,7 @@ export default function App() {
             await setAnimationPending(true);
         }
 
-        await setStorage('state:barVisible', checked);
+        await set(S.BAR_VISIBLE, checked);
 
         // Only reload when disabling the bar (to restore any locked/expanded elements)
         // When enabling, the content script's storage watcher will mount the bar dynamically

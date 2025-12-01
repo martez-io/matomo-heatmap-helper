@@ -12,6 +12,7 @@ import autoprefixer from 'autoprefixer';
  * 1. Removes :root from selectors (keeping only :host)
  * 2. Scopes universal selectors (*, ::before, ::after, ::backdrop) inside :host
  * 3. REMOVES @property declarations (they are GLOBAL and leak out of Shadow DOM!)
+ * 4. UNWRAPS @supports fallback in @layer properties (so --tw-* variables are always set)
  *
  * This prevents Tailwind CSS variables from leaking to the host page while
  * maintaining proper styling for popup/options pages.
@@ -35,6 +36,23 @@ function scopeForShadowDom() {
       // on the page. The initial-value (like #0000 for gradients) would override page styles.
       root.walkAtRules('property', atRule => {
         atRule.remove();
+      });
+
+      // CRITICAL: Unwrap @supports fallback in @layer properties
+      // Tailwind v4 wraps fallback initial values for --tw-* variables in an @supports query
+      // that only matches browsers WITHOUT @property support. Since we removed @property,
+      // modern browsers (which DO support @property) would skip this block, leaving
+      // variables like --tw-border-style, --tw-gradient-from-position undefined.
+      // By unwrapping, we ensure these fallback values are always applied.
+      root.walkAtRules('supports', atRule => {
+        // Check if this @supports is inside @layer properties
+        const parent = atRule.parent;
+        if (parent?.type === 'atrule' &&
+            parent?.name === 'layer' &&
+            parent?.params === 'properties') {
+          // Replace @supports with its children (unwrap it)
+          atRule.replaceWith(atRule.nodes);
+        }
       });
 
       // Transform rules for Shadow DOM scoping

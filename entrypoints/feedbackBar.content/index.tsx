@@ -6,7 +6,8 @@
 
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import ReactDOM from 'react-dom/client';
-import { storage } from 'wxt/utils/storage';
+import { get, set } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 import { logger } from '@/lib/logger';
 import { App } from './components/App';
 import './styles.css';
@@ -32,13 +33,13 @@ export default defineContentScript({
         }
 
         // 3. Deduplication check (same ts = already processed)
-        const lastTs = await storage.getItem<number>('local:feedback:lastProcessedTs');
+        const lastTs = await get(S.LAST_PROCESSED_TS);
         if (lastTs === ts) {
             logger.debug('FeedbackBar', 'Already processed this success, skipping');
             cleanupUrl();
             return;
         }
-        await storage.setItem<number>('local:feedback:lastProcessedTs', ts);
+        await set(S.LAST_PROCESSED_TS, ts);
 
         // 4. Extract context before cleanup
         const heatmapId = params.get('mhh_heatmap');

@@ -5,9 +5,9 @@
 
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import ReactDOM from 'react-dom/client';
-import { storage } from 'wxt/utils/storage';
 import { browser } from 'wxt/browser';
-import { getCredentials, getDomainSiteMapping, getEnforceTracker } from '@/lib/storage';
+import { getCredentials, getDomainSiteMapping, getEnforceTracker, get, set, watch } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 import { extractDomain } from '@/lib/site-resolver';
 import { logger } from '@/lib/logger';
 import { App } from './components/App';
@@ -90,8 +90,8 @@ async function mountBar(ctx: ContentScriptContext, siteId: number, siteName: str
   }
 
   // Store site info for the App component
-  await storage.setItem('local:persistentBar:siteId', siteId);
-  await storage.setItem('local:persistentBar:siteName', siteName);
+  await set(S.PERSISTENT_BAR_SITE_ID, siteId);
+  await set(S.PERSISTENT_BAR_SITE_NAME, siteName);
 
   // Trigger heatmap fetch for this site (fire-and-forget, don't block UI mounting)
   logger.debug('PersistentBar', 'Triggering heatmap fetch...');
@@ -176,10 +176,10 @@ export default defineContentScript({
     }
 
     // Step 3: Check initial bar visibility and mount if enabled
-    const barVisible = await storage.getItem('local:state:barVisible');
+    const barVisible = await get(S.BAR_VISIBLE);
     logger.debug('PersistentBar', 'Bar visibility setting:', barVisible);
 
-    if (barVisible !== false) {
+    if (barVisible) {
       logger.debug('PersistentBar', 'Bar enabled, mounting...');
       await mountBar(ctx, siteInfo.siteId, siteInfo.siteName);
     } else {
@@ -187,23 +187,24 @@ export default defineContentScript({
     }
 
     // Step 4: Watch for bar visibility changes (enables mounting without page reload)
-    const unwatchBarVisible = storage.watch<boolean>('local:state:barVisible', async (newValue, oldValue) => {
+    // Using new watch() helper that applies defaults - no more null handling needed
+    const unwatchBarVisible = watch(S.BAR_VISIBLE, async (newValue, oldValue) => {
       logger.debug('PersistentBar', 'Bar visibility changed:', { oldValue, newValue });
 
-      if (newValue === true && oldValue === false) {
-        // Bar was enabled - mount it
+      if (newValue && !oldValue) {
+        // Bar was enabled
         logger.debug('PersistentBar', 'Bar enabled via toggle, mounting...');
         await mountBar(ctx, siteInfo.siteId, siteInfo.siteName);
-      } else if (newValue === false && oldValue !== false) {
-        // Bar was disabled - unmount it
+      } else if (!newValue && oldValue) {
+        // Bar was disabled
         logger.debug('PersistentBar', 'Bar disabled via toggle, unmounting...');
         unmountBar();
       }
     });
 
     // Step 5: Watch for enforce mode changes to unmount if needed
-    const unwatchEnforce = storage.watch<boolean>('local:enforce:enabled', async (newValue, oldValue) => {
-      if (oldValue === true && newValue === false && wasEnforcedMapping) {
+    const unwatchEnforce = watch(S.ENFORCE_ENABLED, async (newValue, oldValue) => {
+      if (oldValue && !newValue && wasEnforcedMapping) {
         logger.debug('PersistentBar', 'Enforce mode disabled, checking if bar should remain...');
 
         try {
@@ -226,10 +227,20 @@ export default defineContentScript({
       }
     });
 
+    // Step 6: Watch for credentials being cleared (e.g., after "Delete All Data")
+    // This ensures the content script reinitializes with fresh state
+    const unwatchCredentials = watch(S.API_URL, async (newValue, oldValue) => {
+      if (!newValue && oldValue && currentUi) {
+        logger.debug('PersistentBar', 'Credentials cleared while bar active, reloading page...');
+        window.location.reload();
+      }
+    });
+
     // Clean up watchers when context invalidates
     ctx.onInvalidated(() => {
       unwatchBarVisible();
       unwatchEnforce();
+      unwatchCredentials();
     });
   },
 });

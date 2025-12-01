@@ -7,7 +7,8 @@
  * - Watches storage changes to update cache live
  */
 
-import { storage } from 'wxt/utils/storage';
+import { get, watch } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 
 interface Logger {
   _debugEnabled: boolean;
@@ -40,8 +41,7 @@ export const logger: Logger = {
 
     // Load current debug mode setting
     try {
-      const debugMode = await storage.getItem<boolean>('local:settings:debugMode');
-      this._debugEnabled = debugMode ?? false;
+      this._debugEnabled = await get(S.DEBUG_MODE);
     } catch {
       // Storage access failed - keep default (disabled)
     }
@@ -50,8 +50,8 @@ export const logger: Logger = {
     // The watcher uses a blob worker which many websites block
     if (!skipWatcher) {
       try {
-        this._unwatch = storage.watch<boolean>('local:settings:debugMode', (newValue) => {
-          this._debugEnabled = newValue ?? false;
+        this._unwatch = watch(S.DEBUG_MODE, (newValue) => {
+          this._debugEnabled = newValue;
         });
       } catch {
         // Watcher failed (likely CSP) - logger still works, just won't update live

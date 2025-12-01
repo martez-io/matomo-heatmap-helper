@@ -2,7 +2,8 @@
  * Interactive mode for manually locking/unlocking elements
  */
 
-import { setStorage } from '@/lib/storage';
+import { set } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 
 // Semantic colors for injected styles (must be hex values for host page injection)
 const COLORS = {
@@ -42,7 +43,7 @@ const elementsWithRemovedHref = new Map<HTMLElement, string>();
  * Sync state to storage
  */
 async function syncStateToStorage(): Promise<void> {
-  await setStorage('state:isInteractiveMode', ScrollTracker.isInteractiveMode);
+  await set(S.INTERACTIVE_MODE, ScrollTracker.isInteractiveMode);
 
   const lockedElements: LockedElementData[] = Array.from(
     ScrollTracker.lockedElements.values()
@@ -51,7 +52,7 @@ async function syncStateToStorage(): Promise<void> {
     scrollHeight: meta.scrollHeight,
     clientHeight: meta.clientHeight,
   }));
-  await setStorage('state:lockedElements', lockedElements);
+  await set(S.LOCKED_ELEMENTS, lockedElements);
 }
 
 /**

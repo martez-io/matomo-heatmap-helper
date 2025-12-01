@@ -5,7 +5,8 @@
  */
 
 import { browser } from 'wxt/browser';
-import { getStorage, setStorage, getCredentials } from '@/lib/storage';
+import { get, set, getCredentials } from '@/lib/storage';
+import { S } from '@/lib/storage-keys';
 import { createMatomoClient, type MatomoApiClient } from '@/lib/matomo-api';
 import { sendToContentScript, triggerMatomoScreenshot, cleanAndInjectTracker, waitForMatomoReady } from '@/lib/messaging';
 import { logger } from '@/lib/logger';
@@ -209,7 +210,7 @@ export class ScreenshotStateMachine {
     if (!this.context) return;
 
     // Check if enforcement is enabled
-    const enforceEnabled = await getStorage('enforce:enabled');
+    const enforceEnabled = await get(S.ENFORCE_ENABLED);
 
     if (enforceEnabled) {
       logger.debug('StateMachine', 'Enforce mode enabled, injecting tracker...');
@@ -312,8 +313,8 @@ export class ScreenshotStateMachine {
 
     // Clear processing state IMMEDIATELY before animations
     // This ensures the persistent bar returns to normal state right away
-    await setStorage('state:isProcessing', false);
-    await setStorage('state:processingStep', null);
+    await set(S.IS_PROCESSING, false);
+    await set(S.PROCESSING_STEP, null);
 
     // Show border glow animation
     try {
@@ -427,9 +428,9 @@ export class ScreenshotStateMachine {
     this.context = null;
     this.apiClient = null;
 
-    await setStorage('state:screenshotInProgress', null);
-    await setStorage('state:isProcessing', false);
-    await setStorage('state:processingStep', null);
+    await set(S.SCREENSHOT_PROGRESS, null);
+    await set(S.IS_PROCESSING, false);
+    await set(S.PROCESSING_STEP, null);
   }
 
   /**
@@ -438,9 +439,9 @@ export class ScreenshotStateMachine {
   private async persistState(): Promise<void> {
     // Clear state for terminal or non-processing states
     if (this.currentState === 'idle' || this.currentState === 'complete' || this.currentState === 'error' || !this.context) {
-      await setStorage('state:screenshotInProgress', null);
-      await setStorage('state:isProcessing', false);
-      await setStorage('state:processingStep', null);
+      await set(S.SCREENSHOT_PROGRESS, null);
+      await set(S.IS_PROCESSING, false);
+      await set(S.PROCESSING_STEP, null);
       return;
     }
 
@@ -462,14 +463,14 @@ export class ScreenshotStateMachine {
         error: this.context.error,
       };
 
-      await setStorage('state:screenshotInProgress', progress);
-      await setStorage('state:isProcessing', true);
-      await setStorage('state:processingStep', processingStep);
+      await set(S.SCREENSHOT_PROGRESS, progress);
+      await set(S.IS_PROCESSING, true);
+      await set(S.PROCESSING_STEP, processingStep);
     } else {
       // For 'restoring' or other non-user-visible states, clear processing indicators
-      await setStorage('state:screenshotInProgress', null);
-      await setStorage('state:isProcessing', false);
-      await setStorage('state:processingStep', null);
+      await set(S.SCREENSHOT_PROGRESS, null);
+      await set(S.IS_PROCESSING, false);
+      await set(S.PROCESSING_STEP, null);
     }
   }
 
@@ -477,7 +478,7 @@ export class ScreenshotStateMachine {
    * Restore state from storage (after extension restart)
    */
   private async restoreFromStorage(): Promise<void> {
-    const progress = await getStorage('state:screenshotInProgress');
+    const progress = await get(S.SCREENSHOT_PROGRESS);
 
     if (!progress) return;
 
