@@ -5,7 +5,7 @@ export default defineConfig({
   outDir: "dist",
   manifest: {
     name: 'Matomo Heatmap Helper',
-    version: '0.5.0',
+    version: '0.5.1',
     description: 'The missing chrome extension for Matomo heatmap screenshots',
     permissions: ['activeTab', 'scripting', 'storage'],
     host_permissions: ['<all_urls>'],
