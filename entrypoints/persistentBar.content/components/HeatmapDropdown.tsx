@@ -89,9 +89,9 @@ export function HeatmapDropdown({ heatmaps, selectedHeatmap, onSelect }: Heatmap
                 onClick={() => setOpen(!open)}
                 className="w-full max-w-[305px] justify-between h-9 font-normal"
             >
-                <span className="truncate">
+                <span className="truncate flex items-center gap-1.5">
                     {selectedHeatmap
-                        ? `${selectedHeatmap.name} (${formatMatchRules(selectedHeatmap.match_page_rules)})`
+                        ? <>{selectedHeatmap.name}</>
                         : heatmaps.length === 0
                             ? 'No heatmaps available'
                             : 'Select a heatmap...'}
@@ -145,8 +145,8 @@ export function HeatmapDropdown({ heatmaps, selectedHeatmap, onSelect }: Heatmap
                                             )}
                                         />
                                         <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="font-medium truncate text-foreground">
-                                                {heatmap.name} <span className="text-muted-foreground font-normal">#{heatmap.idsitehsr}</span>
+                                            <span className="font-medium truncate text-foreground flex items-center gap-1.5 justify-between">
+                                                <span>{heatmap.name}</span> <span className="text-muted-foreground text-xs">{heatmap.idsitehsr}</span>
                                             </span>
                                             <span className="text-xs text-muted-foreground truncate">{matchRules}</span>
                                         </div>
