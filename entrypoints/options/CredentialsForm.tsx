@@ -36,7 +36,7 @@ interface CredentialsFormProps {
     initialValues?: Partial<CredentialsFormData>;
 }
 
-export function CredentialsForm({ onValidate, isLoading, validationStatus, initialValues }: CredentialsFormProps) {
+export function CredentialsForm({ onValidate, isLoading, validationStatus: _validationStatus, initialValues }: CredentialsFormProps) {
     const [showToken, setShowToken] = useState(false);
 
     const form = useForm<CredentialsFormData>({

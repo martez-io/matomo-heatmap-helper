@@ -12,7 +12,7 @@
 import { browser } from 'wxt/browser';
 import { logger } from '@/lib/logger';
 import { isCrossOrigin } from './cors-detector';
-import type { CssTextResult, BackgroundResponse } from '@/types/messages';
+import type { BackgroundResponse } from '@/types/messages';
 
 /**
  * Information about a font URL within @font-face src
@@ -96,7 +96,7 @@ export function collectStylesheets(doc: Document): {
     if (sheet) {
       try {
         // Try to access cssRules - will throw for cross-origin
-        const _rules = sheet.cssRules;
+        void sheet.cssRules;
         canAccessRules = true;
       } catch {
         canAccessRules = false;

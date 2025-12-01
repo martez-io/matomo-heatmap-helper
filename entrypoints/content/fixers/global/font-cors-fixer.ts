@@ -20,7 +20,6 @@ import {
   detectFontFaces,
   getFontUrlsToProxy,
   generateFontFaceCss,
-  FontFaceInfo,
 } from '../utils/font-detector';
 import type { Fixer, GlobalFixerContext, FixerResult } from '../types';
 import type { CorsResourceRequest, BackgroundResponse } from '@/types/messages';

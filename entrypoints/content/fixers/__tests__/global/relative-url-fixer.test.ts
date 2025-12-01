@@ -48,22 +48,22 @@ describe('relative-url-fixer', () => {
   });
 
   describe('fixer.apply', () => {
-    it('should return applied=false when no relative URLs found', () => {
+    it('should return applied=false when no relative URLs found', async () => {
       document.body.innerHTML = '<img src="https://cdn.example.com/image.png">';
 
-      const result = relativeUrlFixer.apply({ document });
+      const result = await relativeUrlFixer.apply({ document });
 
       expect(result.applied).toBe(false);
       expect(result.count).toBe(0);
     });
 
-    it('should detect and convert relative URLs', () => {
+    it('should detect and convert relative URLs', async () => {
       document.body.innerHTML = `
         <img src="/images/photo.jpg">
         <img src="/images/other.jpg">
       `;
 
-      const result = relativeUrlFixer.apply({ document });
+      const result = await relativeUrlFixer.apply({ document });
 
       expect(result.applied).toBe(true);
       expect(result.count).toBe(2);
@@ -112,13 +112,13 @@ describe('relative-url-fixer', () => {
   });
 
   describe('restore functionality', () => {
-    it('should restore all converted URLs via result.restore()', () => {
+    it('should restore all converted URLs via result.restore()', async () => {
       document.body.innerHTML = `
         <img src="/images/photo.jpg" id="img1">
         <img src="/images/other.jpg" id="img2">
       `;
 
-      const result = relativeUrlFixer.apply({ document });
+      const result = await relativeUrlFixer.apply({ document });
 
       // Verify conversion happened
       const img1 = document.getElementById('img1');
@@ -132,10 +132,10 @@ describe('relative-url-fixer', () => {
       expect(document.getElementById('img2')?.getAttribute('src')).toBe('/images/other.jpg');
     });
 
-    it('should restore srcset to original value', () => {
+    it('should restore srcset to original value', async () => {
       document.body.innerHTML = '<img srcset="/small.jpg 1x, /large.jpg 2x">';
 
-      const result = relativeUrlFixer.apply({ document });
+      const result = await relativeUrlFixer.apply({ document });
       result.restore();
 
       const img = document.querySelector('img');
@@ -223,22 +223,22 @@ describe('relative-url-fixer', () => {
       expect(img?.getAttribute('src')).toBe(dataUri);
     });
 
-    it('should handle empty document', () => {
+    it('should handle empty document', async () => {
       document.body.innerHTML = '';
 
-      const result = relativeUrlFixer.apply({ document });
+      const result = await relativeUrlFixer.apply({ document });
 
       expect(result.applied).toBe(false);
       expect(result.count).toBe(0);
     });
 
-    it('should handle mixed absolute and relative URLs', () => {
+    it('should handle mixed absolute and relative URLs', async () => {
       document.body.innerHTML = `
         <img src="/relative.jpg" id="relative">
         <img src="https://cdn.example.com/absolute.jpg" id="absolute">
       `;
 
-      const result = relativeUrlFixer.apply({ document });
+      const result = await relativeUrlFixer.apply({ document });
 
       expect(result.count).toBe(1);
 

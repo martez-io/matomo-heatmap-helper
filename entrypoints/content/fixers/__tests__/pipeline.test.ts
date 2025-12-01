@@ -58,6 +58,7 @@ describe('Pipeline', () => {
       // Register a fixer that doesn't apply
       const fixer: Fixer = {
         id: 'test:no-match',
+        title: 'Test no match',
         priority: 10,
         scope: 'element',
         shouldApply: () => false,
@@ -78,6 +79,7 @@ describe('Pipeline', () => {
 
       const fixer1: Fixer = {
         id: 'test:high',
+        title: 'Test high',
         priority: 30,
         scope: 'element',
         shouldApply: () => true,
@@ -89,6 +91,7 @@ describe('Pipeline', () => {
 
       const fixer2: Fixer = {
         id: 'test:low',
+        title: 'Test low',
         priority: 10,
         scope: 'element',
         shouldApply: () => true,
@@ -100,6 +103,7 @@ describe('Pipeline', () => {
 
       const fixer3: Fixer = {
         id: 'test:medium',
+        title: 'Test medium',
         priority: 20,
         scope: 'element',
         shouldApply: () => true,
@@ -124,6 +128,7 @@ describe('Pipeline', () => {
 
       const baseFixer: Fixer = {
         id: 'element:test',
+        title: 'Test base',
         priority: 10,
         scope: 'element',
         shouldApply: () => true,
@@ -136,6 +141,7 @@ describe('Pipeline', () => {
 
       const composableFixer: ComposableFixer = {
         id: 'element:composable',
+        title: 'Test composable',
         priority: 100,
         scope: 'element',
         composesFixers: ['element:test'],
@@ -164,6 +170,7 @@ describe('Pipeline', () => {
 
       const baseFixer1: Fixer = {
         id: 'element:composed',
+        title: 'Test composed',
         priority: 10,
         scope: 'element',
         shouldApply: () => true,
@@ -176,6 +183,7 @@ describe('Pipeline', () => {
 
       const baseFixer2: Fixer = {
         id: 'element:standalone',
+        title: 'Test standalone',
         priority: 20,
         scope: 'element',
         shouldApply: () => true,
@@ -188,6 +196,7 @@ describe('Pipeline', () => {
 
       const composableFixer: ComposableFixer = {
         id: 'element:composable',
+        title: 'Test composable',
         priority: 100,
         scope: 'element',
         composesFixers: ['element:composed'],
@@ -217,6 +226,7 @@ describe('Pipeline', () => {
 
       const baseFixer: Fixer = {
         id: 'element:test',
+        title: 'Test base',
         priority: 10,
         scope: 'element',
         shouldApply: () => true,
@@ -229,6 +239,7 @@ describe('Pipeline', () => {
 
       const composableFixer: ComposableFixer = {
         id: 'element:composable',
+        title: 'Test composable',
         priority: 100,
         scope: 'element',
         composesFixers: ['element:test'],
@@ -254,6 +265,7 @@ describe('Pipeline', () => {
 
       const errorFixer: Fixer = {
         id: 'test:error',
+        title: 'Test error',
         priority: 10,
         scope: 'element',
         shouldApply: () => true,
@@ -264,6 +276,7 @@ describe('Pipeline', () => {
 
       const goodFixer: Fixer = {
         id: 'test:good',
+        title: 'Test good',
         priority: 20,
         scope: 'element',
         shouldApply: () => true,
@@ -294,6 +307,7 @@ describe('Pipeline', () => {
 
       const fixer1: Fixer = {
         id: 'test:first',
+        title: 'Test first',
         priority: 10,
         scope: 'element',
         shouldApply: () => true,
@@ -306,6 +320,7 @@ describe('Pipeline', () => {
 
       const fixer2: Fixer = {
         id: 'test:second',
+        title: 'Test second',
         priority: 20,
         scope: 'element',
         shouldApply: () => true,
@@ -318,6 +333,7 @@ describe('Pipeline', () => {
 
       const fixer3: Fixer = {
         id: 'test:third',
+        title: 'Test third',
         priority: 30,
         scope: 'element',
         shouldApply: () => true,
@@ -346,6 +362,7 @@ describe('Pipeline', () => {
 
       const errorFixer: Fixer = {
         id: 'test:error',
+        title: 'Test error',
         priority: 10,
         scope: 'element',
         shouldApply: () => true,
@@ -360,6 +377,7 @@ describe('Pipeline', () => {
 
       const goodFixer: Fixer = {
         id: 'test:good',
+        title: 'Test good',
         priority: 20,
         scope: 'element',
         shouldApply: () => true,

@@ -2,7 +2,7 @@
  * Edge case tests for URL detection with HTML-encoded quotes
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { extractCssUrls, detectRelativeUrls } from '../../utils/url-detector';
+import { detectRelativeUrls } from '../../utils/url-detector';
 import { applyAbsoluteUrls, restoreOriginalUrls } from '../../utils/url-converter';
 
 describe('HTML-encoded URL detection edge cases', () => {
@@ -104,7 +104,7 @@ describe('URL conversion end-to-end', () => {
 
     // Detect and apply
     const resources = detectRelativeUrls(document.body);
-    const applied = applyAbsoluteUrls(resources);
+    applyAbsoluteUrls(resources);
 
     // After
     console.log('AFTER - style.backgroundImage:', div.style.backgroundImage);
@@ -119,7 +119,6 @@ describe('URL conversion end-to-end', () => {
     document.body.innerHTML = `<div style="background-image: url(&quot;/test.jpg&quot;);"></div>`;
 
     const div = document.body.querySelector('div')!;
-    const originalStyleAttr = div.getAttribute('style');
 
     // Apply
     const resources = detectRelativeUrls(document.body);

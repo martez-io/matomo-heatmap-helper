@@ -10,6 +10,7 @@ import type { Fixer, ComposableFixer, FixerScope } from '../types';
 function createMockFixer(id: string, priority: number, scope: FixerScope = 'element'): Fixer {
   return {
     id,
+    title: `Mock ${id}`,
     priority,
     scope,
     shouldApply: vi.fn().mockReturnValue(true),
@@ -29,6 +30,7 @@ function createMockComposableFixer(
 ): ComposableFixer {
   return {
     id,
+    title: `Mock ${id}`,
     priority,
     scope: 'element',
     composesFixers,

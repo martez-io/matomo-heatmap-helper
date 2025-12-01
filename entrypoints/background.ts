@@ -1,4 +1,7 @@
-import { browser, type Browser } from 'wxt/browser';
+import { browser } from 'wxt/browser';
+
+// Extract MessageSender type from the browser.runtime.onMessage listener signature
+type MessageSender = Parameters<Parameters<typeof browser.runtime.onMessage.addListener>[0]>[1];
 import { defineBackground } from 'wxt/utils/define-background';
 import { ScreenshotStateMachine } from './background/ScreenshotStateMachine';
 import { fetchCorsResources, fetchCssText } from './background/cors-fetcher';
@@ -55,7 +58,7 @@ export default defineBackground({
 
 async function handleMessage(
   message: BackgroundMessage,
-  sender?: Browser.Runtime.MessageSender
+  sender?: MessageSender
 ): Promise<BackgroundResponse> {
   switch (message.action) {
     case 'executeScreenshot':
@@ -210,7 +213,7 @@ async function handleOpenSettings(): Promise<BackgroundResponse> {
     logger.debug('Background', 'Opening settings page');
 
     // Get the options page URL - WXT generates it as chrome-extension://[ID]/options.html
-    const optionsUrl = browser.runtime.getURL('/options.html');
+    const optionsUrl = (browser.runtime as any).getURL('/options.html') as string;
 
     const tab = await browser.tabs.create({ url: optionsUrl, active: true });
 

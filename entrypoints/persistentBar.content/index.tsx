@@ -77,7 +77,7 @@ async function resolveSiteInfo(): Promise<{ siteId: number; siteName: string } |
     }
   }
 
-  return { siteId, siteName };
+  return { siteId: siteId!, siteName: siteName! };
 }
 
 /**

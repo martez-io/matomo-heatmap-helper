@@ -2,6 +2,7 @@
  * Test utilities for fixer tests
  */
 
+import { vi } from 'vitest';
 import type { FixerContext } from '../types';
 
 /**

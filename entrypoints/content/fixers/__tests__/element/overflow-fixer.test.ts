@@ -104,11 +104,11 @@ describe('OverflowFixer', () => {
       expect(element.style.overflowY).toBe('visible');
     });
 
-    it('should return applied: true', () => {
+    it('should return applied: true', async () => {
       const element = createElement('div', { style: { overflow: 'hidden' } });
       const context = createFixerContext(element);
 
-      const result = overflowFixer.apply(context);
+      const result = await overflowFixer.apply(context);
 
       expect(result.applied).toBe(true);
       expect(result.fixerId).toBe('element:overflow');
@@ -116,48 +116,48 @@ describe('OverflowFixer', () => {
   });
 
   describe('restore', () => {
-    it('should restore original overflow', () => {
+    it('should restore original overflow', async () => {
       const element = createElement('div', { style: { overflow: 'hidden' } });
       const originalOverflow = element.style.overflow;
       const context = createFixerContext(element);
 
-      const result = overflowFixer.apply(context);
+      const result = await overflowFixer.apply(context);
       expect(element.style.overflow).toBe('visible');
 
       result.restore();
       expect(element.style.overflow).toBe(originalOverflow);
     });
 
-    it('should restore original overflowY', () => {
+    it('should restore original overflowY', async () => {
       const element = createElement('div', { style: { overflowY: 'scroll' } });
       const originalOverflowY = element.style.overflowY;
       const context = createFixerContext(element);
 
-      const result = overflowFixer.apply(context);
+      const result = await overflowFixer.apply(context);
       expect(element.style.overflowY).toBe('visible');
 
       result.restore();
       expect(element.style.overflowY).toBe(originalOverflowY);
     });
 
-    it('should restore empty string values correctly', () => {
+    it('should restore empty string values correctly', async () => {
       const element = createElement('div', { style: { overflow: 'auto' } });
       element.style.overflow = '';
       element.style.overflowY = '';
       const context = createFixerContext(element);
 
-      const result = overflowFixer.apply(context);
+      const result = await overflowFixer.apply(context);
       result.restore();
 
       expect(element.style.overflow).toBe('');
       expect(element.style.overflowY).toBe('');
     });
 
-    it('should restore scroll value', () => {
+    it('should restore scroll value', async () => {
       const element = createElement('div', { style: { overflow: 'scroll' } });
       const context = createFixerContext(element);
 
-      const result = overflowFixer.apply(context);
+      const result = await overflowFixer.apply(context);
       result.restore();
 
       expect(element.style.overflow).toBe('scroll');

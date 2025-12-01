@@ -84,11 +84,11 @@ describe('PositionFixer', () => {
       expect(element.style.position).toBe('relative');
     });
 
-    it('should return applied: true', () => {
+    it('should return applied: true', async () => {
       const element = createElement('div');
       const context = createFixerContext(element);
 
-      const result = positionFixer.apply(context);
+      const result = await positionFixer.apply(context);
 
       expect(result.applied).toBe(true);
       expect(result.fixerId).toBe('element:position');
@@ -96,25 +96,25 @@ describe('PositionFixer', () => {
   });
 
   describe('restore', () => {
-    it('should restore original static position', () => {
+    it('should restore original static position', async () => {
       const element = createElement('div', { style: { position: 'static' } });
       const originalPosition = element.style.position;
       const context = createFixerContext(element);
 
-      const result = positionFixer.apply(context);
+      const result = await positionFixer.apply(context);
       expect(element.style.position).toBe('relative');
 
       result.restore();
       expect(element.style.position).toBe(originalPosition);
     });
 
-    it('should restore empty string value correctly', () => {
+    it('should restore empty string value correctly', async () => {
       const element = createElement('div');
       // No explicit position set
       element.style.position = '';
       const context = createFixerContext(element);
 
-      const result = positionFixer.apply(context);
+      const result = await positionFixer.apply(context);
       result.restore();
 
       expect(element.style.position).toBe('');
