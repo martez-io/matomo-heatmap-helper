@@ -2,10 +2,9 @@
  * Tests for the height fixer
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { heightFixer } from '../../element/height-fixer';
 import {
-  createElement,
   createScrollableElement,
   createFixerContext,
   cleanup,
@@ -107,11 +106,11 @@ describe('HeightFixer', () => {
       expect(element.style.maxHeight).toBe('none');
     });
 
-    it('should return applied: true', () => {
+    it('should return applied: true', async () => {
       const element = createScrollableElement();
       const context = createFixerContext(element);
 
-      const result = heightFixer.apply(context);
+      const result = await heightFixer.apply(context);
 
       expect(result.applied).toBe(true);
       expect(result.fixerId).toBe('element:height');
@@ -119,46 +118,46 @@ describe('HeightFixer', () => {
   });
 
   describe('restore', () => {
-    it('should restore original height', () => {
+    it('should restore original height', async () => {
       const element = createScrollableElement();
       element.style.height = '200px';
       const originalHeight = element.style.height;
       const context = createFixerContext(element);
 
-      const result = heightFixer.apply(context);
+      const result = await heightFixer.apply(context);
       expect(element.style.height).toBe('500px');
 
       result.restore();
       expect(element.style.height).toBe(originalHeight);
     });
 
-    it('should restore original minHeight', () => {
+    it('should restore original minHeight', async () => {
       const element = createScrollableElement();
       element.style.minHeight = '100px';
       const originalMinHeight = element.style.minHeight;
       const context = createFixerContext(element);
 
-      const result = heightFixer.apply(context);
+      const result = await heightFixer.apply(context);
       expect(element.style.minHeight).toBe('500px');
 
       result.restore();
       expect(element.style.minHeight).toBe(originalMinHeight);
     });
 
-    it('should restore original maxHeight', () => {
+    it('should restore original maxHeight', async () => {
       const element = createScrollableElement();
       element.style.maxHeight = '300px';
       const originalMaxHeight = element.style.maxHeight;
       const context = createFixerContext(element);
 
-      const result = heightFixer.apply(context);
+      const result = await heightFixer.apply(context);
       expect(element.style.maxHeight).toBe('none');
 
       result.restore();
       expect(element.style.maxHeight).toBe(originalMaxHeight);
     });
 
-    it('should restore empty string values correctly', () => {
+    it('should restore empty string values correctly', async () => {
       const element = createScrollableElement();
       // No explicit height set
       element.style.height = '';
@@ -166,7 +165,7 @@ describe('HeightFixer', () => {
       element.style.maxHeight = '';
       const context = createFixerContext(element);
 
-      const result = heightFixer.apply(context);
+      const result = await heightFixer.apply(context);
       result.restore();
 
       expect(element.style.height).toBe('');

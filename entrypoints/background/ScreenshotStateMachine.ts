@@ -11,6 +11,7 @@ import { createMatomoClient, type MatomoApiClient } from '@/lib/matomo-api';
 import { sendToContentScript, triggerMatomoScreenshot, cleanAndInjectTracker, waitForMatomoReady } from '@/lib/messaging';
 import { logger } from '@/lib/logger';
 import type { ProcessingStep, ScreenshotProgress } from '@/types/storage';
+import type { MatomoHeatmap } from '@/types/matomo';
 
 export type ScreenshotState =
   | 'idle'
@@ -154,7 +155,7 @@ export class ScreenshotStateMachine {
     // Enable manual capture if needed
     if (heatmap.capture_manually === 0) {
       logger.debug('StateMachine', 'Enabling manual capture...');
-      await this.apiClient.updateHeatmap({ ...heatmap, capture_manually: 1 });
+      await this.apiClient.updateHeatmap({ ...heatmap, capture_manually: 1 } as MatomoHeatmap);
     }
 
     // Resume if ended
