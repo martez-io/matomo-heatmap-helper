@@ -14,10 +14,9 @@ import { isFirefox, isEdge } from '@/lib/platform';
 // =============================================================================
 // PLACEHOLDER CONFIGURATION - UPDATE BEFORE PUBLISHING
 // =============================================================================
-const CHROME_EXTENSION_ID = 'your-chrome-extension-id';
+const CHROME_EXTENSION_ID = 'mndiinpjddfgnpemghkcefbpegcnbnnd';
 const FIREFOX_ADDON_SLUG = 'matomo-heatmap-helper';
 // =============================================================================
-
 /**
  * Get the review URL for the current browser's extension store
  * Uses unified platform detection from @/lib/platform

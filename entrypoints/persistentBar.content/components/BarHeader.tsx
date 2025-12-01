@@ -48,7 +48,7 @@ export function BarHeader({ isMinimized, onToggleMinimize, onOpenSettings, onOpe
         <div className="flex items-center justify-between border-b-1 border-border pb-2">
             {/* Logo and title */}
             <a
-                href="https://martez.io"
+                href="https://martez.io?mtm_source=matomo-heatmap-helper&mtm_medium=extension&mtm_campaign=persistent-bar"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 no-underline select-none"

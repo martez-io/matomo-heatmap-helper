@@ -455,7 +455,7 @@ export default function App() {
                     <p className="text-center text-sm text-muted-foreground mt-8">
                         Developed with ❤️ by{' '}
                         <a
-                            href="https://martez.io"
+                            href="https://martez.io?mtm_source=matomo-heatmap-helper&mtm_medium=extension&mtm_campaign=options"
                             className="text-foreground/80 hover:underline transition-colors"
                             target="_blank"
                             rel="noopener noreferrer"
