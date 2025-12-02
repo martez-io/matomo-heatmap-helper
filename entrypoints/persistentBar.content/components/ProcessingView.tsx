@@ -6,9 +6,10 @@ import { XIcon } from 'lucide-react';
 
 interface ProcessingViewProps {
     currentStep: ProcessingStep;
+    onCancel: () => void;
 }
 
-export function ProcessingView({ currentStep }: ProcessingViewProps) {
+export function ProcessingView({ currentStep, onCancel }: ProcessingViewProps) {
     const stepConfig = STEP_CONFIGS[currentStep];
     const currentIndex = STEP_ORDER.indexOf(currentStep);
     const totalSteps = STEP_ORDER.length;
@@ -40,7 +41,7 @@ export function ProcessingView({ currentStep }: ProcessingViewProps) {
                 </div>
 
                 <div className="ml-auto">
-                    <Button variant="secondary" size="sm">
+                    <Button variant="secondary" size="sm" onClick={onCancel}>
                         <XIcon className="size-4" />
                         <span>Cancel</span>
                     </Button>

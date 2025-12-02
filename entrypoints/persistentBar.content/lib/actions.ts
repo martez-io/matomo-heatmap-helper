@@ -111,6 +111,28 @@ export async function takeScreenshot(
 }
 
 /**
+ * Cancel screenshot in progress
+ */
+export async function cancelScreenshot(dispatch: React.Dispatch<BarAction>) {
+  logger.debug('Actions', 'Cancelling screenshot');
+
+  try {
+    await browser.runtime.sendMessage({ action: 'cancelScreenshot' });
+
+    // Reset local state
+    dispatch({ type: 'SET_PROCESSING', payload: false });
+    dispatch({ type: 'SET_PROCESSING_STEP', payload: null });
+
+    // Reload page to restore original state
+    window.location.reload();
+  } catch (error) {
+    logger.error('Actions', 'Cancel failed:', error);
+    // Still reload to clean up
+    window.location.reload();
+  }
+}
+
+/**
  * Dismiss error message
  */
 export function dismissError(dispatch: React.Dispatch<BarAction>) {

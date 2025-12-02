@@ -9,6 +9,7 @@ import {
     toggleInteractiveMode,
     selectHeatmap,
     takeScreenshot,
+    cancelScreenshot,
     dismissError,
     toggleMinimized,
     openSettings,
@@ -117,7 +118,10 @@ function BarContainer() {
 
                     {/* Processing mode: show clean single-step view */}
                     {state.isProcessing && state.processingStep && (
-                        <ProcessingView currentStep={state.processingStep} />
+                        <ProcessingView
+                            currentStep={state.processingStep}
+                            onCancel={() => cancelScreenshot(dispatch)}
+                        />
                     )}
 
                     {/* Error message (always shown when error exists) */}
