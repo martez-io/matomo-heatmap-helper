@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/martez-io/matomo-heatmap-helper/compare/v0.6.0...v0.6.1) (2025-12-02)
+
+
+### Bug Fixes
+
+* remove broken template variables from release-please config ([17e1c12](https://github.com/martez-io/matomo-heatmap-helper/commit/17e1c12f697403be04fc010dced44e2fb6bb2ba1))
+* simplify release naming to just version number ([35ecd97](https://github.com/martez-io/matomo-heatmap-helper/commit/35ecd97e17f513f26bd28ae8197287054a8d3e22))
+
 ## [0.6.0](https://github.com/martez-io/matomo-heatmap-helper/compare/matomo-heatmap-helper-v0.5.4...matomo-heatmap-helper-v0.6.0) (2025-12-02)
 
 
