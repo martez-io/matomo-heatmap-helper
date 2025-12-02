@@ -18,7 +18,7 @@
     },
     "keywords": [],
     "author": "",
-    "license": "ISC",
+    "license": "GPL-3.0",
     "description": "Prepares pages with custom scroll containers for Matomo heatmap screenshots",
     "devDependencies": {
         "@tailwindcss/postcss": "^4.1.16",
