@@ -1,9 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  release:
+    types: [published]
 
 jobs:
   test:
@@ -28,7 +27,7 @@ jobs:
       - name: Run tests
         run: npm run test:run
 
-  release:
+  build-and-upload:
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -44,14 +43,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and Zip
+      - name: Build and Zip Chrome
         run: npm run zip
 
-      - name: Create GitHub Release
+      - name: Build and Zip Firefox
+        run: npm run zip:firefox
+
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.zip
-          generate_release_notes: true
 
       - name: Submit to Chrome Web Store
         continue-on-error: true
