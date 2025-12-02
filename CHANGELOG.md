@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/martez-io/matomo-heatmap-helper/compare/v0.6.1...v0.6.2) (2025-12-02)
+
+
+### Bug Fixes
+
+* add release documentation and disable Firefox build temporarily ([783b6aa](https://github.com/martez-io/matomo-heatmap-helper/commit/783b6aa753387be0aca5fe17e1f018f87a1de788))
+
 ## [0.6.1](https://github.com/martez-io/matomo-heatmap-helper/compare/v0.6.0...v0.6.1) (2025-12-02)
 
 
