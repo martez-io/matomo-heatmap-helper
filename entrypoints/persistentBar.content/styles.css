@@ -124,10 +124,16 @@
       rgba(0, 0, 0, 1) 100%
     );
     opacity: 0;
+    transition: opacity 2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Phase: ready - overlay rendered but everything hidden (allows CSS transitions to work) */
+  .entrance-overlay[data-phase="ready"]::before {
+    opacity: 0;
   }
 
   .entrance-overlay[data-phase="darkening"]::before {
-    animation: overlay-fade-in 3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    opacity: 1;
   }
 
   .entrance-overlay[data-phase="mystical-light"]::before {
@@ -139,25 +145,8 @@
   }
 
   .entrance-overlay[data-phase="fading-out"]::before {
-    animation: overlay-fade-out 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  }
-
-  @keyframes overlay-fade-in {
-    0% {
-      opacity: 0;
-    }
-    100% {
-      opacity: 1;
-    }
-  }
-
-  @keyframes overlay-fade-out {
-    0% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-    }
+    opacity: 0;
+    transition: opacity 2.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Mystical glow from bottom center - using primary (amber) colors */
@@ -180,105 +169,184 @@
     transition: all 2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  /* Phase: ready - glow hidden */
+  .entrance-overlay[data-phase="ready"] .mystical-glow {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.8);
+  }
+
+  /* Phase: darkening - glow stays hidden */
   .entrance-overlay[data-phase="darkening"] .mystical-glow {
     opacity: 0;
     transform: translateX(-50%) scale(0.8);
   }
 
+  /* Phase: mystical-light - glow appears with hot zones */
   .entrance-overlay[data-phase="mystical-light"] .mystical-glow {
     opacity: 0.6;
     transform: translateX(-50%) translateY(-50px) scale(0.95);
     transition: all 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
 
+  /* Phase: bar-entering - glow intensifies */
   .entrance-overlay[data-phase="bar-entering"] .mystical-glow {
     opacity: 1;
     transform: translateX(-50%) translateY(-100px) scale(1.1);
     transition: all 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
 
+  /* Phase: fading-out - glow fades with overlay */
   .entrance-overlay[data-phase="fading-out"] .mystical-glow {
     opacity: 0;
     transform: translateX(-50%) translateY(-150px) scale(1.2);
     transition: all 2.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Floating particles / sparkles - using primary (amber) colors */
-  .particles {
+  /* Heatmap hot zone container */
+  .hot-zone {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 100%;
+    height: 350px;
     overflow: hidden;
+    pointer-events: none;
   }
 
-  .particle {
+  /* Individual hot blob - heatmap style radial gradient */
+  .hot-blob {
     position: absolute;
-    bottom: -20px;
-    left: var(--x-start);
-    transform: translateX(-50%);
-    width: var(--size, 2px);
-    height: var(--size, 2px);
+    /* Start position: fully below screen, scaled down */
+    bottom: -400px;
+    left: calc(50% + var(--x-offset, 0%));
+    transform: translateX(-50%) scale(0.5);
+    width: var(--size, 250px);
+    height: var(--size, 250px);
     background: radial-gradient(
       circle,
-      rgba(255, 255, 255, 1) 0%,
-      oklch(85% 0.15 75 / 0.9) 25%,
-      oklch(75% 0.18 65 / 0.5) 50%,
+      /* Hottest core - deep red-orange */
+      rgb(200, 70, 40) 0%,
+      /* Hot zone - coral/salmon pink */
+      rgba(230, 120, 90, 0.95) 30%,
+      /* Warm zone - yellow */
+      rgba(220, 210, 70, 0.7) 55%,
+      /* Cool zone - lime green */
+      rgba(140, 215, 80, 0.3) 75%,
+      /* Cold edge - cyan/teal */
+      rgba(80, 200, 210, 0.1) 90%,
       transparent 100%
     );
     border-radius: 50%;
+    filter: blur(40px);
     opacity: 0;
-    filter: blur(0.5px);
-    box-shadow:
-      0 0 4px rgba(255, 255, 255, 0.8),
-      0 0 8px oklch(75% 0.18 70 / 0.6),
-      0 0 12px oklch(70% 0.15 60 / 0.3);
+    will-change: transform, opacity, bottom;
+    /* Slower rise transition for theatrical lava-lamp effect */
+    transition: bottom 2.5s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 2s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 2.5s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .entrance-overlay[data-phase="darkening"] .particle,
-  .entrance-overlay[data-phase="mystical-light"] .particle,
-  .entrance-overlay[data-phase="bar-entering"] .particle {
-    animation: particle-rise var(--duration, 3s) linear forwards;
-    animation-delay: var(--delay);
+  /* Phase: ready - blobs hidden below screen */
+  .entrance-overlay[data-phase="ready"] .hot-blob {
+    bottom: -400px;
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
   }
 
-  .entrance-overlay[data-phase="fading-out"] .particle {
-    animation: particle-rise var(--duration, 3s) linear forwards, particle-fade-out 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    animation-delay: var(--delay), 0s;
+  /* Phase: darkening - blobs peek from below, halfway point */
+  .entrance-overlay[data-phase="darkening"] .hot-blob {
+    bottom: -200px;
+    opacity: 0.3;
+    transform: translateX(-50%) scale(0.7);
   }
 
-  @keyframes particle-fade-out {
-    0% {
-      opacity: inherit;
+  /* Phase: mystical-light - blobs rise fully, start wandering */
+  .entrance-overlay[data-phase="mystical-light"] .hot-blob {
+    bottom: calc(-80px + var(--y-offset, 0px));
+    opacity: 0.75;
+    transform: translateX(-50%) scale(1);
+    animation: blob-wander var(--duration, 10s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+
+  /* Phase: bar-entering - full intensity */
+  .entrance-overlay[data-phase="bar-entering"] .hot-blob {
+    bottom: calc(-80px + var(--y-offset, 0px));
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    animation: blob-wander var(--duration, 10s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+
+  /* Phase: fading-out - blobs fade away */
+  .entrance-overlay[data-phase="fading-out"] .hot-blob {
+    bottom: calc(-80px + var(--y-offset, 0px));
+    opacity: 0;
+    transform: translateX(-50%) scale(1);
+    transition: opacity 2s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: blob-wander var(--duration, 10s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+
+  /* Organic wandering motion - blobs drift and pulse */
+  @keyframes blob-wander {
+    0%, 100% {
+      transform: translateX(-50%) translateY(0) scale(1);
     }
-    100% {
-      opacity: 0;
+    20% {
+      transform: translateX(calc(-50% + 30px)) translateY(-15px) scale(1.1);
+    }
+    40% {
+      transform: translateX(calc(-50% - 20px)) translateY(-25px) scale(0.9);
+    }
+    60% {
+      transform: translateX(calc(-50% + 15px)) translateY(-10px) scale(1.15);
+    }
+    80% {
+      transform: translateX(calc(-50% - 25px)) translateY(-20px) scale(0.95);
     }
   }
 
-  @keyframes particle-rise {
-    0% {
-      opacity: 0;
-      transform: translateY(0) scale(0.5);
-    }
-    5% {
-      opacity: 0.8;
-    }
-    15% {
-      opacity: 1;
-      transform: translateY(-10vh) scale(1);
-    }
-    85% {
-      opacity: 0.3;
-      transform: translateY(-55vh) scale(0.7);
-      left: var(--x-end);
-    }
-    100% {
-      opacity: 0;
-      transform: translateY(-65vh) scale(0.5);
-      left: var(--x-end);
-    }
+  /* Grain overlay for heatmap texture */
+  .grain-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    mix-blend-mode: overlay;
+  }
+
+  .grain-overlay svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Phase: ready - grain hidden */
+  .entrance-overlay[data-phase="ready"] .grain-overlay {
+    opacity: 0;
+  }
+
+  /* Phase: darkening - grain stays hidden */
+  .entrance-overlay[data-phase="darkening"] .grain-overlay {
+    opacity: 0;
+  }
+
+  /* Phase: mystical-light - grain fades in with blobs */
+  .entrance-overlay[data-phase="mystical-light"] .grain-overlay {
+    opacity: 0.5;
+    transition: opacity 1.5s ease-in;
+  }
+
+  /* Phase: bar-entering - full grain */
+  .entrance-overlay[data-phase="bar-entering"] .grain-overlay {
+    opacity: 0.8;
+    transition: opacity 1s ease-in;
+  }
+
+  /* Phase: fading-out - grain fades with overlay */
+  .entrance-overlay[data-phase="fading-out"] .grain-overlay {
+    opacity: 0;
+    transition: opacity 2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Bar wrapper animation - slide up from bottom, no opacity */
