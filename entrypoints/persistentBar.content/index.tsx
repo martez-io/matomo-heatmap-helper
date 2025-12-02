@@ -164,6 +164,23 @@ export default defineContentScript({
     const credentials = await getCredentials();
     if (!credentials) {
       logger.debug('PersistentBar', 'No credentials configured - bar will not show');
+
+      // Watch for credentials being added (e.g., after first-time setup)
+      // This watcher MUST be set up before the early return so it can trigger
+      // when the user adds credentials for the first time
+      const unwatchCredentialsAdded = watch(S.API_URL, async (newValue, oldValue) => {
+        if (newValue && !oldValue) {
+          logger.debug('PersistentBar', 'Credentials added, reloading page to initialize bar...');
+          unwatchCredentialsAdded(); // Clean up before reload
+          window.location.reload();
+        }
+      });
+
+      // Clean up watcher when context invalidates
+      ctx.onInvalidated(() => {
+        unwatchCredentialsAdded();
+      });
+
       return;
     }
     logger.debug('PersistentBar', 'Credentials found');
