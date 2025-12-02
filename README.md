@@ -14,6 +14,10 @@
   <img src="https://img.shields.io/badge/chrome-MV3-brightgreen?style=flat-square&logo=googlechrome" alt="Chrome MV3">
 </p>
 
+<p align="center">
+  <img src="assets/demo.gif" alt="Demo" width="600">
+</p>
+
 ## About
 
 Matomo's heatmap feature captures screenshots of your pages to overlay click and scroll data. However, many modern websites use custom scroll containers, fixed headers, overflow:hidden, and cross-origin resources that break these screenshots—resulting in incomplete or broken heatmaps.
@@ -24,6 +28,7 @@ This extension detects and fixes these issues before Matomo captures the screens
 - **Automatic Fixes**: Expands heights, removes overflow restrictions, converts relative URLs
 - **CORS Handling**: Fetches cross-origin images and fonts, converts them to data URIs
 - **Clean Restoration**: All changes are reverted after the screenshot completes
+
 
 ## Installation
 
