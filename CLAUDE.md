@@ -4,96 +4,136 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Matomo Heatmap Helper is a Chrome/Firefox extension that prepares pages with custom scroll containers for Matomo heatmap screenshots. It solves the problem where pages with overflow:hidden elements or fixed-height containers don't capture fully in Matomo's heatmap screenshots.
+Matomo Heatmap Helper is a Chrome extension (also supports Firefox) that fixes common issues with Matomo heatmap screenshots. Pages with custom scroll containers, overflow:hidden elements, fixed-height containers, or cross-origin resources don't capture correctly - this extension detects and fixes those issues.
 
-## Commands
+Built with [WXT](https://wxt.dev/) (WebExtension framework) and React 19, using Tailwind CSS 4 for styling.
+
+## Common Commands
 
 ```bash
-# Development
-npm run dev              # Start dev server (Chrome)
-npm run dev:firefox      # Start dev server (Firefox)
+# Development (Chrome with hot reload)
+npm run dev
 
-# Build
-npm run build            # Production build (Chrome)
-npm run build:firefox    # Production build (Firefox)
+# Development (Firefox)
+npm run dev:firefox
 
-# Package
-npm run zip              # Create distributable zip (Chrome)
-npm run zip:firefox      # Create distributable zip (Firefox)
+# Build for production
+npm run build
+npm run build:firefox
+
+# Testing
+npm run test           # Watch mode
+npm run test:run       # Single run
+npm run test:coverage  # With coverage report
+
+# Package for distribution
+npm run zip
+npm run zip:firefox
 ```
 
 ## Architecture
 
-### Framework
-Built with [WXT](https://wxt.dev/) (Next-gen Web Extension Framework) + React + TypeScript + Tailwind CSS.
+### Extension Entry Points (`entrypoints/`)
 
-### Extension Components
+The extension has four main contexts that communicate via Chrome messaging:
 
-**Background Service Worker** (`entrypoints/background.ts`)
-- Central message router handling all cross-component communication
-- Uses `ScreenshotStateMachine` for orchestrating the screenshot workflow
-- Handles tab lifecycle events (navigation, closure during screenshots)
+1. **Background Service Worker** (`background.ts`)
+   - Central coordinator using `ScreenshotStateMachine` for screenshot flow
+   - Handles Matomo API calls, CORS resource fetching, site resolution
+   - Communicates with popup and content scripts via `browser.runtime.onMessage`
 
-**Content Script** (`entrypoints/content/`)
-- Modular structure: `index.ts` (entry), `state.ts`, `scroll-tracking.ts`, `expansion.ts`, `interactive-mode.ts`, `animations.ts`, `dom-utils.ts`, `events.ts`
-- `ScrollTracker` global state tracks scrolled/locked elements
-- Communicates via both Chrome messaging API and CustomEvents (for Shadow DOM bar)
+2. **Content Script** (`content/index.ts`)
+   - Runs on all pages, manipulates DOM for heatmap screenshots
+   - Uses the **Fixer System** (see below) to fix CSS/DOM issues
+   - Communicates with persistent bar via custom DOM events (`mhh:*`)
 
-**Persistent Bar** (`entrypoints/persistentBar.content/`)
-- React app rendered in Shadow DOM via WXT's `createShadowRootUi`
-- Only mounts on pages where site is resolved to a Matomo-tracked domain
-- Uses CustomEvents (`mhh:*`) to communicate with content script
+3. **Persistent Bar** (`persistentBar.content/`)
+   - React app mounted in Shadow DOM via `createShadowRootUi`
+   - Shows on pages that match a configured Matomo site
+   - Controls interactive mode, element locking, and triggers screenshots
 
-**Popup** (`entrypoints/popup/`)
-- React app for extension icon click
-- Shows different states: Unconfigured, NoPermission, SiteNotFound, ControlCenter
+4. **Popup** (`popup/`)
+   - Extension popup for initial configuration and quick access
+   - Handles credentials setup, site selection, bar visibility toggle
 
-**Options Page** (`entrypoints/options/`)
-- Credentials configuration (Matomo API URL + auth token)
+### Fixer System (`entrypoints/content/fixers/`)
 
-### State Management
+Composable system for fixing CSS/DOM properties during screenshot capture. See `fixers/README.md` for full documentation.
 
-**Storage** (`lib/storage.ts`)
-- Type-safe wrapper around WXT storage using `StorageSchema` types
-- Keys prefixed by category: `matomo:*`, `cache:*`, `state:*`, `ui:*`
+**Key concepts:**
+- **Element fixers** (`element/`): Run on individual locked/scrolled elements (e.g., height, overflow, position)
+- **Global fixers** (`global/`): Run once on entire document (e.g., relative URL conversion)
+- **ComposableFixer**: Specialized fixers can declare which base fixers they supersede via `composesFixers`
+- **Self-contained restoration**: Each fixer's `apply()` returns a `restore()` closure
 
-**Screenshot State Machine** (`entrypoints/background/ScreenshotStateMachine.ts`)
-- States: idle → validating → expanding → capturing → verifying → restoring → complete
-- Persists state to storage for resilience across browser restarts
-- Handles retry logic and error recovery
+**Adding a new fixer:**
+1. Create file in `element/` or `global/`
+2. Implement `Fixer` interface with `id`, `priority`, `scope`, `shouldApply()`, `apply()`
+3. Import in `index.ts` to auto-register
+4. Write tests in `__tests__/`
 
-### Messaging Patterns
+### Storage System (`lib/storage.ts`, `lib/storage-keys.ts`)
 
-**Background ↔ Content Script**: Chrome messaging API (`browser.runtime.sendMessage`)
-**Content Script ↔ Persistent Bar**: CustomEvents on `window` object
-- Events: `mhh:startTracking`, `mhh:stopTracking`, `mhh:statusUpdate`, etc.
+Two APIs available:
 
-### Type System
+```typescript
+// New API (preferred) - uses storage entries with defaults
+import { S } from '@/lib/storage-keys';
+import { get, set, watch } from '@/lib/storage';
 
-- `types/messages.ts`: All message types for extension communication
-- `types/storage.ts`: Storage schema with full type definitions
-- `types/matomo.ts`: Matomo API response types
-- Path alias `@/*` maps to project root
+const barVisible = await get(S.BAR_VISIBLE);  // Returns boolean, never null
+await set(S.BAR_VISIBLE, true);
+watch(S.BAR_VISIBLE, (newVal, oldVal) => { /* ... */ });
+
+// Legacy API - may return null
+const value = await getStorage('matomo:apiUrl');
+```
+
+Adding new storage keys in `storage-keys.ts` automatically includes them in `clearAllData()`.
+
+### Messaging (`types/messages.ts`)
+
+- **ContentScriptMessage**: Content script actions (startTracking, prepareLayout, etc.)
+- **BackgroundMessage**: Background worker actions (executeScreenshot, fetchHeatmaps, etc.)
+- **Custom DOM events**: Bar-to-content communication uses `mhh:*` events (e.g., `mhh:startTracking`)
+
+### Shared Libraries (`lib/`)
+
+- `matomo-api.ts`: Matomo API client for fetching heatmaps and sites
+- `site-resolver.ts`: Matches current page URL to Matomo sites
+- `logger.ts`: Debug logging (enabled via settings:debugMode)
+- `messaging.ts`: Typed message sending helpers
 
 ### UI Components
 
-- Uses shadcn/ui components (`components/ui/`)
-- Custom icons in `components/icons/`
-- Shared styles in `assets/style.css`
-- Tailwind v4 with `@tailwindcss/postcss` + `postcss-rem-to-px` for consistent sizing
+- `components/ui/`: Radix-based shadcn/ui components
+- `components/icons/`: Custom SVG icons
+- Each entrypoint has its own component tree (e.g., `persistentBar.content/components/`)
 
-## Key Workflows
+## Key Patterns
 
-**Screenshot Capture Flow**:
-1. User selects heatmap in persistent bar
-2. Background validates/enables heatmap via Matomo API
-3. Content script expands scrollable elements
-4. Matomo's `_paq.push(['HeatmapSessionRecording::captureInitialDom', id])` triggered
-5. Background polls API to verify capture
-6. Content script restores layout
-7. Opens heatmap view tab
+### Shadow DOM Isolation
+The persistent bar uses Shadow DOM (`createShadowRootUi`) to isolate styles from the host page. CSS is injected via `cssInjectionMode: 'ui'`.
 
-**Interactive Mode**:
-- User clicks elements to "lock" their expanded height
-- Locked elements survive layout restore
-- Visual indicators via CSS pseudo-elements (::before/::after) or fallback DOM element
+### State Machine for Screenshots
+`ScreenshotStateMachine` in background coordinates the multi-step screenshot process (prepare layout, capture, upload, restore).
+
+### Interactive Mode
+Users can click elements to "lock" them for expansion. Locked elements get visual indicators and are processed by the fixer pipeline during screenshots.
+
+## Testing
+
+Tests use Vitest with happy-dom. Coverage focuses on `entrypoints/content/fixers/`.
+
+Test utilities in `fixers/__tests__/test-utils.ts`:
+- `createElement()`, `createScrollableElement()`, `createFixerContext()`
+- Always call `cleanup()` in `afterEach()`
+
+## Path Aliases
+
+`@/` maps to the project root (configured in `vitest.config.ts`).
+
+```typescript
+import { S } from '@/lib/storage-keys';
+import type { BackgroundMessage } from '@/types/messages';
+```
