@@ -46,8 +46,9 @@ jobs:
       - name: Build and Zip Chrome
         run: npm run zip
 
-      - name: Build and Zip Firefox
-        run: npm run zip:firefox
+      # TODO: Uncomment when Firefox support is ready
+      # - name: Build and Zip Firefox
+      #   run: npm run zip:firefox
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2

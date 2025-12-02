@@ -137,3 +137,12 @@ Test utilities in `fixers/__tests__/test-utils.ts`:
 import { S } from '@/lib/storage-keys';
 import type { BackgroundMessage } from '@/types/messages';
 ```
+
+## Releasing
+
+Uses [release-please](https://github.com/googleapis/release-please) for automated releases. See `RELEASING.md` for full details.
+
+**Quick summary:**
+1. Use conventional commits (`feat:`, `fix:`, etc.)
+2. Merge to `main` → release-please creates a Release PR
+3. Merge Release PR → builds and publishes Chrome + Firefox zips
