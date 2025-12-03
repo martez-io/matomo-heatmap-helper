@@ -59,12 +59,22 @@ export function useStorageSync(dispatch: React.Dispatch<BarAction>) {
       });
     });
 
+    // Watch for processing error updates
+    const unwatchError = watch(S.PROCESSING_ERROR, (newValue) => {
+      logger.debug('useStorageSync', 'Processing error updated:', newValue);
+      dispatch({
+        type: 'SET_ERROR',
+        payload: newValue,
+      });
+    });
+
     return () => {
       logger.debug('useStorageSync', 'Cleaning up storage watchers...');
       unwatchHeatmaps();
       unwatchSelected();
       unwatchProcessing();
       unwatchStep();
+      unwatchError();
     };
   }, [dispatch]);
 }

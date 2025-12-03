@@ -30,6 +30,7 @@ export const S = {
   ACTIVE_TAB_ID: { key: 'state:activeTabId', default: null } as StorageEntry<number | null>,
   HAS_SEEN_ANIMATION: { key: 'state:hasSeenEntranceAnimation', default: false } as StorageEntry<boolean>,
   ANIMATION_PENDING: { key: 'state:animationPending', default: false } as StorageEntry<boolean>,
+  PROCESSING_ERROR: { key: 'state:processingError', default: null } as StorageEntry<string | null>,
 
   // ─── Settings ──────────────────────────────────────────
   DEBUG_MODE: { key: 'settings:debugMode', default: false } as StorageEntry<boolean>,

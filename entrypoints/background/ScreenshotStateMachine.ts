@@ -335,6 +335,15 @@ export class ScreenshotStateMachine {
           false
         );
 
+        logger.debug('StateMachine', 'Heatmap API response:', JSON.stringify(heatmap, null, 2));
+        logger.debug(
+          'StateMachine',
+          'heatmapViewUrl present:',
+          !!heatmap.heatmapViewUrl,
+          'value:',
+          heatmap.heatmapViewUrl
+        );
+
         if (heatmap.heatmapViewUrl) {
           const baseUrl = `${creds.apiUrl}/${heatmap.heatmapViewUrl}`.replace(
             '&token_auth=' + creds.authToken,
@@ -348,6 +357,12 @@ export class ScreenshotStateMachine {
           successUrl.searchParams.set('mhh_ts', String(Date.now()));
 
           await browser.tabs.create({ url: successUrl.toString(), active: true });
+        } else {
+          logger.warn(
+            'StateMachine',
+            'No heatmapViewUrl in response, skipping redirect. Available keys:',
+            Object.keys(heatmap)
+          );
         }
       } catch (err) {
         logger.error('StateMachine', 'Failed to open heatmap tab:', err);
@@ -364,10 +379,15 @@ export class ScreenshotStateMachine {
   private async handleError(error: unknown): Promise<void> {
     logger.error('StateMachine', 'Error:', error);
 
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
     this.context = {
       ...this.context!,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
     };
+
+    // Persist error to storage for UI display
+    await set(S.PROCESSING_ERROR, errorMessage);
 
     // Hide scanner if active
     try {
@@ -432,6 +452,7 @@ export class ScreenshotStateMachine {
     await set(S.SCREENSHOT_PROGRESS, null);
     await set(S.IS_PROCESSING, false);
     await set(S.PROCESSING_STEP, null);
+    await set(S.PROCESSING_ERROR, null);
   }
 
   /**

@@ -208,6 +208,13 @@ export class MatomoApiClient {
     try {
       const result = await this.getHeatmap(siteId, heatmapId, true);
 
+      logger.debug('MatomoAPI', 'Verification response keys:', Object.keys(result || {}));
+      logger.debug(
+        'MatomoAPI',
+        'page_treemirror status:',
+        result?.page_treemirror ? `present (${result.page_treemirror.length} chars)` : 'missing'
+      );
+
       // Check if page_treemirror exists and is non-empty
       if (
         result &&
